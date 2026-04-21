@@ -2,14 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\CalendarEvent;
 use App\Support\QueueDashboard;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,8 +27,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        View::composer('layouts.app', function ($view): void {
-            $view->with('queueSummary', app(QueueDashboard::class)->summary());
+        View::composer('*', function ($view): void {
+            $view->with([
+                'queueSummary' => app(QueueDashboard::class)->summary(),
+                'reviewCount' => CalendarEvent::query()->needsReview()->count(),
+            ]);
         });
 
         Queue::before(function (JobProcessing $event): void {

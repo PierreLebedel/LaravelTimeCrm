@@ -27,6 +27,8 @@ new #[Title('Revue')] class extends Component
 
     public string $description = '';
 
+    public bool $is_billable = true;
+
     public string $starts_at = '';
 
     public string $ends_at = '';
@@ -40,23 +42,53 @@ new #[Title('Revue')] class extends Component
     {
         $event = CalendarEvent::query()
             ->needsReview()
-            ->with(['client:id,name', 'project:id,name,client_id'])
-            ->orderBy('starts_at')
+            ->with(['calendar.account.defaultClient:id,name,color', 'client:id,name', 'project:id,name,client_id'])
+            ->orderByDesc('starts_at')
             ->first();
 
         if ($event === null) {
             $this->reset('event_id', 'client_id', 'project_id', 'feature_description', 'description', 'starts_at', 'ends_at');
+            $this->is_billable = true;
 
             return;
         }
 
         $this->event_id = $event->id;
-        $this->client_id = (string) ($event->client_id ?? '');
+        $this->client_id = (string) ($event->client_id ?? $event->calendar?->account?->default_client_id ?? '');
         $this->project_id = (string) ($event->project_id ?? '');
         $this->feature_description = (string) ($event->feature_description ?? '');
         $this->description = (string) ($event->description ?? '');
+        $this->is_billable = $event->is_billable;
         $this->starts_at = $event->starts_at->format('Y-m-d\TH:i');
         $this->ends_at = $event->ends_at->format('Y-m-d\TH:i');
+    }
+
+    public function updatedClientId(): void
+    {
+        if ($this->project_id === '') {
+            return;
+        }
+
+        $project = Project::query()->find((int) $this->project_id);
+
+        if ($project === null || $this->client_id === '' || $project->client_id !== (int) $this->client_id) {
+            $this->project_id = '';
+        }
+    }
+
+    public function updatedProjectId(): void
+    {
+        if ($this->project_id === '') {
+            return;
+        }
+
+        $project = Project::query()->find((int) $this->project_id);
+
+        if ($project === null) {
+            return;
+        }
+
+        $this->client_id = (string) $project->client_id;
     }
 
     public function save(CalendarEventEditor $editor, QueueWorkerManager $queueWorkerManager): void
@@ -67,6 +99,7 @@ new #[Title('Revue')] class extends Component
             'project_id' => ['nullable'],
             'feature_description' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'is_billable' => ['required', 'bool'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
         ]);
@@ -78,6 +111,7 @@ new #[Title('Revue')] class extends Component
             'project_id' => $validated['project_id'] !== '' ? (int) $validated['project_id'] : null,
             'feature_description' => $validated['feature_description'],
             'description' => $validated['description'] ?: null,
+            'is_billable' => $validated['is_billable'],
             'starts_at' => $validated['starts_at'],
             'ends_at' => $validated['ends_at'],
         ]);
@@ -97,7 +131,9 @@ new #[Title('Revue')] class extends Component
             return 'Selectionne un client pour generer le titre.';
         }
 
-        $project = $this->projectOptions->firstWhere('id', (int) $this->project_id);
+        $project = $this->project_id !== ''
+            ? Project::query()->find((int) $this->project_id)
+            : null;
 
         return CalendarEventTitleFormatter::format($client, $project, $this->feature_description ?: 'feature description');
     }
@@ -110,7 +146,7 @@ new #[Title('Revue')] class extends Component
         }
 
         return CalendarEvent::query()
-            ->with(['calendar:id,name', 'client:id,name', 'project:id,name'])
+            ->with(['calendar.account.defaultClient:id,name,color', 'calendar:id,name,calendar_account_id', 'client:id,name,color', 'project:id,name'])
             ->find($this->event_id);
     }
 
@@ -123,14 +159,21 @@ new #[Title('Revue')] class extends Component
     #[Computed]
     public function projectOptions(): Collection
     {
-        if ($this->client_id === '') {
-            return collect();
-        }
-
         return Project::query()
-            ->where('client_id', (int) $this->client_id)
-            ->orderBy('name')
-            ->get();
+            ->with('client:id,name')
+            ->when($this->client_id !== '', fn ($query) => $query->where('client_id', (int) $this->client_id))
+            ->join('clients', 'clients.id', '=', 'projects.client_id')
+            ->orderBy('clients.name')
+            ->orderBy('projects.name')
+            ->select('projects.*')
+            ->get()
+            ->map(fn (Project $project) => [
+                'id' => $project->id,
+                'name' => $this->client_id !== ''
+                    ? $project->name
+                    : $project->name.' ('.$project->client->name.')',
+            ])
+            ->sortBy('name');
     }
 
     #[Computed]
@@ -157,29 +200,37 @@ new #[Title('Revue')] class extends Component
             @else
                 <div class="space-y-4">
                     <div class="rounded-box bg-base-200 p-4">
+                        <div
+                            class="-m-4 mb-0 rounded-box bg-base-200 p-4"
+                            style="border-left: 4px solid {{ $this->currentEvent->client?->color ?? $this->currentEvent->calendar?->account?->defaultClient?->color ?? 'transparent' }};"
+                        >
                         <p class="text-sm font-semibold">{{ $this->currentEvent->title }}</p>
+                        @if ($this->currentEvent->client?->color)
+                            <div class="mt-2 text-xs text-base-content/60">
+                                <x-client-indicator :name="$this->currentEvent->client->name" :color="$this->currentEvent->client->color" />
+                            </div>
+                        @endif
+                        @unless ($this->currentEvent->is_billable)
+                            <div class="mt-2">
+                                <x-badge value="non facturable" class="badge-ghost" />
+                            </div>
+                        @endunless
                         <p class="mt-1 text-sm text-base-content/60">
                             {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}
                         </p>
                         @if ($this->currentEvent->description)
                             <p class="mt-3 text-sm leading-6 text-base-content/70">{{ $this->currentEvent->description }}</p>
                         @endif
+                        </div>
                     </div>
 
-                    <x-select label="Client" wire:model.change="client_id" :options="$this->clientOptions" required />
-                    <x-select label="Projet" wire:model.change="project_id" :options="$this->projectOptions" placeholder="Sans projet" />
-                    <x-input label="Description courte" wire:model.blur="feature_description" required />
-                    <x-textarea label="Description detaillee" wire:model.blur="description" rows="5" />
-
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <x-input type="datetime-local" label="Debut" wire:model.blur="starts_at" step="900" required />
-                        <x-input type="datetime-local" label="Fin" wire:model.blur="ends_at" step="900" required />
-                    </div>
-
-                    <div class="rounded-box bg-primary/10 p-4 text-sm">
-                        <p class="font-semibold text-primary">Titre final</p>
-                        <p class="mt-2 font-mono text-xs">{{ $this->previewTitle() }}</p>
-                    </div>
+                    <x-calendar-event-form-fields
+                        :client-options="$this->clientOptions"
+                        :project-options="$this->projectOptions"
+                        :project-wire-key="'review-project-select-' . ($client_id ?: 'none')"
+                        :title-preview="$this->previewTitle()"
+                        title-preview-label="Titre final"
+                    />
 
                     <div class="flex gap-3">
                         <x-button label="Valider" class="btn-primary" wire:click="save" spinner="save" />

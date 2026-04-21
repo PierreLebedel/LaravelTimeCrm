@@ -19,8 +19,7 @@ class CalendarAccountSynchronizer
 {
     public function __construct(
         protected CalDavClient $client,
-    ) {
-    }
+    ) {}
 
     public function sync(CalendarAccount $account): CalDavSyncResult
     {
@@ -28,6 +27,7 @@ class CalendarAccountSynchronizer
         $eventCount = 0;
 
         DB::transaction(function () use ($account, &$calendarCount, &$eventCount): void {
+            $account->loadMissing('defaultClient');
             $remoteCalendars = $this->client->discoverCalendars($account);
 
             $calendarCount = $remoteCalendars->count();
@@ -43,7 +43,7 @@ class CalendarAccountSynchronizer
                 $eventCount += $events->count();
 
                 foreach ($events as $event) {
-                    $this->storeEvent($calendar, $event);
+                    $this->storeEvent($calendar, $account, $event);
                 }
             }
 
@@ -90,7 +90,7 @@ class CalendarAccountSynchronizer
         return $calendar;
     }
 
-    protected function storeEvent(Calendar $calendar, CalDavEvent $remoteEvent): CalendarEvent
+    protected function storeEvent(Calendar $calendar, CalendarAccount $account, CalDavEvent $remoteEvent): CalendarEvent
     {
         $event = CalendarEvent::query()->firstOrNew([
             'calendar_id' => $calendar->id,
@@ -100,6 +100,7 @@ class CalendarAccountSynchronizer
         $assignment = $this->resolveAssignment(
             title: $remoteEvent->title,
             calendarEvent: $event,
+            defaultClient: $account->defaultClient,
         );
 
         $event->fill([
@@ -133,9 +134,26 @@ class CalendarAccountSynchronizer
      *     format_status: CalendarEventFormatStatus
      * }
      */
-    protected function resolveAssignment(string $title, CalendarEvent $calendarEvent): array
+    protected function resolveAssignment(string $title, CalendarEvent $calendarEvent, ?Client $defaultClient = null): array
     {
         $parsedTitle = CalendarEventTitleParser::parse($title);
+
+        if ($defaultClient !== null) {
+            $project = $parsedTitle === null || $parsedTitle['project_name'] === null
+                ? null
+                : Project::query()
+                    ->whereBelongsTo($defaultClient)
+                    ->where('name', $parsedTitle['project_name'])
+                    ->first();
+
+            return [
+                'client_id' => $defaultClient->id,
+                'project_id' => $project?->id,
+                'feature_description' => $parsedTitle['feature_description'] ?? $title,
+                'sync_status' => CalendarEventSyncStatus::Synced,
+                'format_status' => CalendarEventFormatStatus::Formatted,
+            ];
+        }
 
         if ($parsedTitle === null) {
             return [

@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use App\Enums\BillingMode;
+use Database\Factories\ClientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'name',
+    'color',
     'billing_mode',
     'hourly_rate',
     'daily_rate',
@@ -17,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class Client extends Model
 {
-    /** @use HasFactory<\Database\Factories\ClientFactory> */
+    /** @use HasFactory<ClientFactory> */
     use HasFactory;
 
     public function projects(): HasMany
@@ -33,6 +35,7 @@ class Client extends Model
     protected function casts(): array
     {
         return [
+            'color' => 'string',
             'billing_mode' => BillingMode::class,
             'hourly_rate' => 'decimal:2',
             'daily_rate' => 'decimal:2',

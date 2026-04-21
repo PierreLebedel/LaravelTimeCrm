@@ -48,6 +48,7 @@ new #[Title('Analyse')] class extends Component
                 CarbonImmutable::parse($this->to)->endOfDay(),
             ])
             ->where('format_status', CalendarEventFormatStatus::Formatted)
+            ->where('is_billable', true)
             ->orderBy('starts_at')
             ->get();
 
@@ -58,9 +59,11 @@ new #[Title('Analyse')] class extends Component
         })->map(function ($group, string $label) {
             $minutes = $group->sum(fn ($event) => $event->durationInMinutes());
             $cost = $group->sum(fn ($event) => $event->client->calculateCostInEuros($event->durationInMinutes()));
+            $firstEvent = $group->first();
 
             return [
                 'label' => $label,
+                'color' => $firstEvent?->client?->color,
                 'events' => $group->count(),
                 'hours' => round($minutes / 60, 2),
                 'cost' => round($cost, 2),
@@ -124,6 +127,10 @@ new #[Title('Analyse')] class extends Component
     </div>
 
     <x-card shadow>
-        <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy" />
+        <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
+            @scope('cell_label', $row)
+                <x-client-indicator :name="$row['label']" :color="$row['color']" />
+            @endscope
+        </x-table>
     </x-card>
 </div>

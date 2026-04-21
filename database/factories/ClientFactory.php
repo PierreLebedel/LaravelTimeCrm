@@ -20,6 +20,7 @@ class ClientFactory extends Factory
     {
         return [
             'name' => fake()->unique()->company(),
+            'color' => fake()->safeHexColor(),
             'billing_mode' => BillingMode::Hourly,
             'hourly_rate' => fake()->randomFloat(2, 60, 1400),
             'daily_rate' => fake()->randomFloat(2, 350, 5000),

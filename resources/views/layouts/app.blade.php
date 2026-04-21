@@ -27,10 +27,17 @@
 
             <x-menu activate-by-route>
                 <x-menu-item title="Calendrier" icon="tabler.calendar-week" link="{{ route('calendar') }}" exact />
+                <x-menu-item title="Calendrier FC" icon="tabler.layout-grid" link="{{ route('calendar.fullcalendar') }}" />
                 <x-menu-item title="Clients" icon="tabler.building-skyscraper" link="{{ route('clients') }}" />
                 <x-menu-item title="Projets" icon="tabler.briefcase" link="{{ route('projects') }}" />
                 <x-menu-item title="Agendas" icon="tabler.link" link="{{ route('calendars') }}" />
-                <x-menu-item title="Revue" icon="tabler.alert-circle" link="{{ route('review') }}" />
+                <x-menu-item
+                    title="Revue"
+                    icon="tabler.alert-circle"
+                    link="{{ route('review') }}"
+                    :badge="($reviewCount ?? 0) > 0 ? (string) $reviewCount : null"
+                    badge-classes="badge-warning"
+                />
                 <x-menu-item title="Analyse" icon="tabler.chart-bar" link="{{ route('reports') }}" />
                 <x-menu-item title="Queue" icon="tabler.list-details" link="{{ route('queue') }}" />
             </x-menu>

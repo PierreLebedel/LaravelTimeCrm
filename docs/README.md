@@ -1,18 +1,19 @@
 # Documentation projet
 
-Cette documentation sert de source de vérité légère pour le mini-CRM NativePHP / Laravel / Livewire.
+Cette documentation sert de source de verite legere pour le mini-CRM NativePHP / Laravel / Livewire.
 
 ## Documents
 
-- `docs/vision-produit.md` : périmètre fonctionnel et règles métier validées.
-- `docs/architecture-domaine.md` : proposition de modèle métier, agrégats et flux applicatifs.
-- `docs/questions-ouvertes.md` : points à trancher avant ou pendant l'implémentation.
+- `docs/vision-produit.md` : perimetre fonctionnel et regles metier validees.
+- `docs/architecture-domaine.md` : modele metier, agregats et flux applicatifs.
+- `docs/questions-ouvertes.md` : points a trancher avant ou pendant l'implementation.
+- `docs/design-system-maryui.md` : conventions UI legeres pour MaryUI, drawers, formulaires, tables et statuts.
 
-## Règles de maintenance
+## Regles de maintenance
 
-- Toute décision métier ou technique durable doit être ajoutée ou mise à jour ici.
+- Toute decision metier ou technique durable doit etre ajoutee ou mise a jour ici.
 - Les documents distinguent clairement :
-  - ce qui est validé ;
-  - ce qui est proposé ;
-  - ce qui reste à arbitrer.
-- Les implémentations doivent suivre la documentation ou la faire évoluer dans le même changement.
+  - ce qui est valide ;
+  - ce qui est propose ;
+  - ce qui reste a arbitrer.
+- Les implementations doivent suivre la documentation ou la faire evoluer dans le meme changement.

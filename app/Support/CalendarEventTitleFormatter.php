@@ -11,11 +11,11 @@ class CalendarEventTitleFormatter
     {
         $title = trim($client->name);
 
-        if($project){
-            $title .= '/'.$project->name;
+        if ($project !== null) {
+            $title .= '/'.trim($project->name);
         }
 
-        $title .= ' : '.$featureDescription;
+        $title .= ' : '.trim($featureDescription);
 
         return $title;
     }

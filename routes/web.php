@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 Route::livewire('/', 'pages::calendar')->name('calendar');
+Route::livewire('/calendrier-fullcalendar', 'pages::calendar-fullcalendar')->name('calendar.fullcalendar');
 Route::livewire('/clients', 'pages::clients')->name('clients');
 Route::livewire('/projects', 'pages::projects')->name('projects');
 Route::livewire('/agendas', 'pages::calendars')->name('calendars');

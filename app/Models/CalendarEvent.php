@@ -5,11 +5,12 @@ namespace App\Models;
 use App\Enums\CalendarEventFormatStatus;
 use App\Enums\CalendarEventSyncStatus;
 use Carbon\CarbonImmutable;
+use Database\Factories\CalendarEventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'calendar_id',
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
     'timezone',
     'title',
     'description',
+    'is_billable',
     'feature_description',
     'sync_status',
     'format_status',
@@ -31,7 +33,7 @@ use Illuminate\Database\Eloquent\Model;
 ])]
 class CalendarEvent extends Model
 {
-    /** @use HasFactory<\Database\Factories\CalendarEventFactory> */
+    /** @use HasFactory<CalendarEventFactory> */
     use HasFactory;
 
     public function calendar(): BelongsTo
@@ -54,6 +56,7 @@ class CalendarEvent extends Model
         return [
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
+            'is_billable' => 'bool',
             'source_updated_at' => 'datetime',
             'last_synced_at' => 'datetime',
             'sync_status' => CalendarEventSyncStatus::class,

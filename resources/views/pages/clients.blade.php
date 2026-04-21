@@ -20,6 +20,8 @@ new #[Title('Clients')] class extends Component
 
     public string $name = '';
 
+    public string $color = '#2563eb';
+
     public string $billing_mode = 'hourly';
 
     public ?string $hourly_rate = null;
@@ -34,6 +36,7 @@ new #[Title('Clients')] class extends Component
     {
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('clients', 'name')->ignore($this->editingClientId)],
+            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'billing_mode' => ['required', Rule::enum(BillingMode::class)],
             'hourly_rate' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->billing_mode === BillingMode::Hourly->value)],
             'daily_rate' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->billing_mode === BillingMode::Daily->value)],
@@ -60,6 +63,7 @@ new #[Title('Clients')] class extends Component
 
         $this->editingClientId = $client->id;
         $this->name = $client->name;
+        $this->color = $client->color ?? '#2563eb';
         $this->billing_mode = $client->billing_mode->value;
         $this->hourly_rate = $client->hourly_rate;
         $this->daily_rate = $client->daily_rate;
@@ -80,6 +84,7 @@ new #[Title('Clients')] class extends Component
     public function resetForm(): void
     {
         $this->reset('editingClientId', 'name', 'hourly_rate', 'daily_rate');
+        $this->color = '#2563eb';
         $this->billing_mode = BillingMode::Hourly->value;
         $this->is_active = true;
         $this->drawer = false;
@@ -89,6 +94,7 @@ new #[Title('Clients')] class extends Component
     public function headers(): array
     {
         return [
+            ['key' => 'color', 'label' => '', 'sortable' => false],
             ['key' => 'name', 'label' => 'Client'],
             ['key' => 'billing_label', 'label' => 'Facturation', 'sortable' => false],
             ['key' => 'projects_count', 'label' => 'Projets'],
@@ -105,6 +111,7 @@ new #[Title('Clients')] class extends Component
             ->get()
             ->map(fn (Client $client) => [
                 'id' => $client->id,
+                'color' => $client->color ?? '#2563eb',
                 'name' => $client->name,
                 'billing_label' => $client->billing_mode === BillingMode::Daily
                     ? number_format((float) $client->daily_rate, 2, ',', ' ').' € / jour'
@@ -133,6 +140,10 @@ new #[Title('Clients')] class extends Component
 
     <x-card shadow>
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
+            @scope('cell_color', $client)
+                <span class="inline-flex size-4 rounded-full border border-base-300" style="background-color: {{ $client['color'] }}"></span>
+            @endscope
+
             @scope('actions', $client)
                 <div class="flex gap-2">
                     <x-button icon="tabler.pencil" class="btn-ghost btn-sm" wire:click="edit({{ $client['id'] }})" />
@@ -145,6 +156,7 @@ new #[Title('Clients')] class extends Component
     <x-drawer wire:model="drawer" title="{{ $editingClientId ? 'Modifier le client' : 'Nouveau client' }}" right separator with-close-button class="w-full lg:w-1/3">
         <div class="space-y-4">
             <x-input label="Nom" wire:model.blur="name" required />
+            <x-input label="Couleur" wire:model.live="color" type="color" required />
             <x-select
                 label="Mode de facturation"
                 wire:model.live="billing_mode"

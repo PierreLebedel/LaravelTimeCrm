@@ -78,3 +78,59 @@ ICS, 200, ['ETag' => '"etag-1"']);
             && str_contains($request->body(), 'DTEND:');
     });
 });
+
+test('it creates a remote event when no existing ics resource is found', function () {
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+    ]);
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'client_id' => $client->id,
+        'project_id' => null,
+        'ical_uid' => 'new-event-123',
+        'external_id' => '/calendars/pierre/main/new-event-123.ics',
+        'external_etag' => null,
+        'title' => 'Acme : Support',
+        'description' => 'Support client',
+        'starts_at' => '2026-04-21 09:00:00',
+        'ends_at' => '2026-04-21 10:15:00',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'GET') {
+            return Http::response('', 404);
+        }
+
+        if ($request->method() === 'PUT') {
+            return Http::response('', 201, ['ETag' => '"etag-created"']);
+        }
+
+        return Http::response('', 500);
+    });
+
+    $etag = app(CalDavClient::class)->updateEvent($event);
+
+    expect($etag)->toBe('"etag-created"');
+
+    Http::assertSent(function (Request $request): bool {
+        if ($request->method() !== 'PUT') {
+            return false;
+        }
+
+        return $request->url() === 'https://dav.example.test/calendars/pierre/main/new-event-123.ics'
+            && str_contains($request->body(), 'UID:new-event-123')
+            && str_contains($request->body(), 'SUMMARY:Acme : Support');
+    });
+});

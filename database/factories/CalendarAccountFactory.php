@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\CalendarAccount;
+use App\Models\Client;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,8 +23,16 @@ class CalendarAccountFactory extends Factory
             'base_url' => fake()->url(),
             'username' => fake()->safeEmail(),
             'password' => fake()->password(18),
+            'default_client_id' => null,
             'is_active' => true,
             'last_synced_at' => now()->subDay(),
         ];
+    }
+
+    public function withDefaultClient(?Client $client = null): static
+    {
+        return $this->state(fn (): array => [
+            'default_client_id' => $client?->id ?? Client::factory(),
+        ]);
     }
 }

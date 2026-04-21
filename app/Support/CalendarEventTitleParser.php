@@ -11,11 +11,11 @@ final class CalendarEventTitleParser
     {
         $matches = [];
 
-        if (! preg_match('/^\s*(?<client>.+?)\s*(?\/<project>.+?)\s*:\s*(?<feature>.+?)\s*$/', $title, $matches)) {
+        if (! preg_match('/^\s*(?<client>[^:\/]+?)\s*(?:\/\s*(?<project>[^:]+?))?\s*:\s*(?<feature>.+?)\s*$/', $title, $matches)) {
             return null;
         }
 
-        $projectName = trim($matches['project']);
+        $projectName = isset($matches['project']) ? trim($matches['project']) : null;
 
         if (blank($projectName)) {
             $projectName = null;

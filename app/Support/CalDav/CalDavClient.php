@@ -2,8 +2,8 @@
 
 namespace App\Support\CalDav;
 
-use App\Models\CalendarEvent;
 use App\Models\CalendarAccount;
+use App\Models\CalendarEvent;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use DOMDocument;
@@ -132,7 +132,7 @@ XML,
      */
     protected function parseMultistatus(string $xml): array
     {
-        $document = new DOMDocument();
+        $document = new DOMDocument;
         $document->loadXML($xml);
 
         $xpath = new DOMXPath($document);
@@ -362,7 +362,7 @@ XML,
             throw new RuntimeException('URL DAV invalide.');
         }
 
-        $port = isset($parsedBaseUrl['port']) ? ':' . $parsedBaseUrl['port'] : '';
+        $port = isset($parsedBaseUrl['port']) ? ':'.$parsedBaseUrl['port'] : '';
 
         return sprintf(
             '%s://%s%s%s',
@@ -424,6 +424,31 @@ XML,
         return $this->nullableString($response->header('ETag') ?? '');
     }
 
+    public function deleteEvent(CalendarEvent $event): void
+    {
+        $event->loadMissing('calendar.account');
+
+        if ($event->calendar === null || $event->calendar->account === null) {
+            throw new RuntimeException('Evenement DAV sans agenda ou compte distant.');
+        }
+
+        if (blank($event->external_id)) {
+            return;
+        }
+
+        $response = $this->request($event->calendar->account)
+            ->withHeaders(array_filter([
+                'If-Match' => $event->external_etag,
+            ]))
+            ->send('DELETE', $this->absoluteUrl($event->calendar->account->base_url, $event->external_id));
+
+        if ($response->status() === 404) {
+            return;
+        }
+
+        $response->throw();
+    }
+
     protected function buildCalendarData(CalendarEvent $event): string
     {
         $lines = [
@@ -431,22 +456,22 @@ XML,
             'VERSION:2.0',
             'PRODID:-//LaravelTimeCrm//FR',
             'BEGIN:VEVENT',
-            'UID:' . $this->escapeIcalText($event->ical_uid),
-            'DTSTAMP:' . now('UTC')->format('Ymd\THis\Z'),
-            'LAST-MODIFIED:' . now('UTC')->format('Ymd\THis\Z'),
-            'DTSTART:' . $event->starts_at->clone()->utc()->format('Ymd\THis\Z'),
-            'DTEND:' . $event->ends_at->clone()->utc()->format('Ymd\THis\Z'),
-            'SUMMARY:' . $this->escapeIcalText($event->title),
+            'UID:'.$this->escapeIcalText($event->ical_uid),
+            'DTSTAMP:'.now('UTC')->format('Ymd\THis\Z'),
+            'LAST-MODIFIED:'.now('UTC')->format('Ymd\THis\Z'),
+            'DTSTART:'.$event->starts_at->clone()->utc()->format('Ymd\THis\Z'),
+            'DTEND:'.$event->ends_at->clone()->utc()->format('Ymd\THis\Z'),
+            'SUMMARY:'.$this->escapeIcalText($event->title),
         ];
 
         if (filled($event->description)) {
-            $lines[] = 'DESCRIPTION:' . $this->escapeIcalText($event->description);
+            $lines[] = 'DESCRIPTION:'.$this->escapeIcalText($event->description);
         }
 
         $lines[] = 'END:VEVENT';
         $lines[] = 'END:VCALENDAR';
 
-        return implode("\r\n", $lines) . "\r\n";
+        return implode("\r\n", $lines)."\r\n";
     }
 
     protected function fetchEventCalendarData(CalendarEvent $event): ?string
@@ -496,7 +521,7 @@ XML,
             $eventLines,
         );
 
-        return implode("\r\n", $lines) . "\r\n";
+        return implode("\r\n", $lines)."\r\n";
     }
 
     /**
@@ -532,7 +557,7 @@ XML,
             }
         }
 
-        array_splice($lines, $insertIndex, 0, [$propertyName . ':' . $value]);
+        array_splice($lines, $insertIndex, 0, [$propertyName.':'.$value]);
 
         return array_values($lines);
     }

@@ -36,6 +36,7 @@ class CalendarEventFactory extends Factory
             'timezone' => 'Europe/Paris',
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(),
+            'is_billable' => true,
             'feature_description' => fake()->sentence(3),
             'sync_status' => CalendarEventSyncStatus::Synced,
             'format_status' => CalendarEventFormatStatus::NeedsReview,

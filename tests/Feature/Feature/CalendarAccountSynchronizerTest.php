@@ -89,7 +89,7 @@ UID:formatted-1
 DTSTAMP:20260421T070000Z
 DTSTART:20260421T080000Z
 DTEND:20260421T100000Z
-SUMMARY:Acme//Plateforme : Sprint planning
+SUMMARY:Acme/Plateforme : Sprint planning
 DESCRIPTION:Preparation\natelier
 LAST-MODIFIED:20260421T100000Z
 END:VEVENT
@@ -109,7 +109,7 @@ UID:conflict-1
 DTSTAMP:20260421T070000Z
 DTSTART:20260422T120000Z
 DTEND:20260422T130000Z
-SUMMARY:Acme//Projet introuvable : Support
+SUMMARY:Acme/Projet introuvable : Support
 DESCRIPTION:Support client
 LAST-MODIFIED:20260421T110000Z
 END:VEVENT
@@ -280,4 +280,116 @@ XML, 207);
         ->and($event->starts_at->timezone->getName())->toBe('Europe/Paris')
         ->and($event->starts_at->format('Y-m-d H:i:s'))->toBe('2026-04-21 10:00:00')
         ->and($event->ends_at->format('Y-m-d H:i:s'))->toBe('2026-04-21 11:15:00');
+});
+
+test('it assigns the default client locally without requiring a remote title rewrite', function () {
+    $defaultClient = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $defaultClient->id,
+        'name' => 'Plateforme',
+    ]);
+
+    $account = CalendarAccount::factory()
+        ->withDefaultClient($defaultClient)
+        ->create([
+            'base_url' => 'https://dav.example.test/principals/pierre/',
+            'username' => 'pierre@example.test',
+            'password' => 'secret-token',
+        ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/default-client.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-default-client"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:default-client-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T090000Z
+DTEND:20260423T101500Z
+SUMMARY:Acme/Plateforme : Atelier
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/calendars/pierre/main/raw-title.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-raw-title"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:raw-title-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $formattedEvent = CalendarEvent::query()
+        ->where('external_id', '/calendars/pierre/main/default-client.ics')
+        ->sole();
+
+    $rawEvent = CalendarEvent::query()
+        ->where('external_id', '/calendars/pierre/main/raw-title.ics')
+        ->sole();
+
+    expect($formattedEvent)
+        ->client_id->toBe($defaultClient->id)
+        ->project_id->toBe($project->id)
+        ->feature_description->toBe('Atelier')
+        ->sync_status->toBe(CalendarEventSyncStatus::Synced)
+        ->format_status->toBe(CalendarEventFormatStatus::Formatted);
+
+    expect($rawEvent)
+        ->client_id->toBe($defaultClient->id)
+        ->project_id->toBeNull()
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Synced)
+        ->format_status->toBe(CalendarEventFormatStatus::Formatted);
 });

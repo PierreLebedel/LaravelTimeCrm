@@ -9,7 +9,7 @@ test('it formats a title with a project', function () {
     $project = Project::factory()->make(['name' => 'Mobile App']);
 
     expect(CalendarEventTitleFormatter::format($client, $project, 'offline sync'))
-        ->toBe('ACME//Mobile App : offline sync');
+        ->toBe('ACME/Mobile App : offline sync');
 });
 
 test('it formats a title without a project', function () {

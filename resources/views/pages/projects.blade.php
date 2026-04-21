@@ -30,7 +30,7 @@ new #[Title('Projets')] class extends Component
 
     public function mount(): void
     {
-        $this->client_id = (string) Client::query()->value('id');
+        $this->client_id = '';
     }
 
     public function save(): void
@@ -88,7 +88,7 @@ new #[Title('Projets')] class extends Component
     public function resetForm(): void
     {
         $this->reset('editingProjectId', 'name', 'description');
-        $this->client_id = (string) Client::query()->value('id');
+        $this->client_id = '';
         $this->is_active = true;
         $this->drawer = false;
         $this->resetErrorBag();
@@ -113,13 +113,14 @@ new #[Title('Projets')] class extends Component
     public function rows(): Collection
     {
         return Project::query()
-            ->with('client:id,name')
+            ->with('client:id,name,color')
             ->withCount('calendarEvents')
             ->orderBy($this->sortBy['column'], $this->sortBy['direction'])
             ->get()
             ->map(fn (Project $project) => [
                 'id' => $project->id,
                 'client_name' => $project->client->name,
+                'client_color' => $project->client->color,
                 'name' => $project->name,
                 'calendar_events_count' => $project->calendar_events_count,
             ]);
@@ -144,6 +145,10 @@ new #[Title('Projets')] class extends Component
 
     <x-card shadow>
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
+            @scope('cell_client_name', $project)
+                <x-client-indicator :name="$project['client_name']" :color="$project['client_color']" />
+            @endscope
+
             @scope('actions', $project)
                 <div class="flex gap-2">
                     <x-button icon="tabler.pencil" class="btn-ghost btn-sm" wire:click="edit({{ $project['id'] }})" />
@@ -155,7 +160,12 @@ new #[Title('Projets')] class extends Component
 
     <x-drawer wire:model="drawer" title="{{ $editingProjectId ? 'Modifier le projet' : 'Nouveau projet' }}" right separator with-close-button class="w-full lg:w-1/3">
         <div class="space-y-4">
-            <x-select label="Client" wire:model="client_id" :options="$this->clientOptions" />
+            <x-select
+                label="Client"
+                wire:model.live="client_id"
+                :options="$this->clientOptions"
+                placeholder="{{ config('crm.select_placeholder') }}"
+            />
             <x-input label="Nom" wire:model.blur="name" required />
             <x-input label="Description" wire:model.blur="description" />
             <x-toggle label="Projet actif" wire:model="is_active" />

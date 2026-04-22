@@ -8,7 +8,7 @@ php artisan queue:work;
 ```
 
 ```bash
-php artisan native:build win;
+php artisan native:build win x64;
 ```
 
 ## Publier une release
@@ -20,7 +20,15 @@ NATIVEPHP_APP_VERSION=1.0.1
 
 Sur GitHub :
 ```bash
-git commit -m "Release v1.0.1"
-git tag v1.0.1
-git push origin main --tags
+git commit -m "Release v1.0.1";
+git tag v1.0.1;
+git push origin main --tags;
 ```
+
+## Annuler une release
+
+```bash
+git tag -d v1.0.0;
+git push origin --delete v1.0.0;
+```
+

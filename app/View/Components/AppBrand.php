@@ -15,8 +15,11 @@ class AppBrand extends Component
                     <div {{ $attributes->class(["hidden-when-collapsed"]) }}>
                         <div class="flex items-center gap-2 w-fit">
                             <x-svg name="tabler-calendar-week" class="w-6 text-primary" />
-                            <span class="font-bold text-2xl me-3">
+                            <span class="font-bold text-2xl">
                                 TimeCRM
+                            </span>
+                            <span class="text-[10px] font-medium uppercase tracking-[0.2em] text-base-content/45">
+                                v{{ config('nativephp.version') }}
                             </span>
                         </div>
                     </div>

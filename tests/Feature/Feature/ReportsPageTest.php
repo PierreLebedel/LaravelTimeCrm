@@ -3,6 +3,7 @@
 use App\Enums\CalendarEventFormatStatus;
 use App\Models\CalendarEvent;
 use App\Models\Client;
+use App\Models\Project;
 
 test('it excludes non billable events from analysis', function () {
     $billableClient = Client::factory()->create([
@@ -33,4 +34,29 @@ test('it excludes non billable events from analysis', function () {
         ->assertOk()
         ->assertSee('Acme')
         ->assertDontSee('Interne');
+});
+
+test('it displays billable time using hours and minutes in analysis', function () {
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Plateforme',
+    ]);
+
+    CalendarEvent::factory()->create([
+        'client_id' => $client->id,
+        'project_id' => $project->id,
+        'starts_at' => '2026-04-15 09:00:00',
+        'ends_at' => '2026-04-15 13:45:00',
+        'is_billable' => true,
+        'format_status' => CalendarEventFormatStatus::Formatted,
+    ]);
+
+    $this->get('/analyse?from=2026-04-01&to=2026-04-30&group=client')
+        ->assertOk()
+        ->assertSee('4h45')
+        ->assertDontSee('4,75 h');
 });

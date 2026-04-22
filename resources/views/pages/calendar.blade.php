@@ -7,6 +7,7 @@ use App\Models\Calendar;
 use App\Models\CalendarEvent;
 use App\Models\Client;
 use App\Models\Project;
+use App\Support\DurationFormatter;
 use App\Support\CalendarEventEditor;
 use App\Support\CalendarEventTitleFormatter;
 use Carbon\CarbonImmutable;
@@ -353,7 +354,7 @@ new #[Title('Calendrier')] class extends Component
 
         return [
             'events' => $events->count(),
-            'hours' => round($minutes / 60, 2),
+            'minutes' => $minutes,
             'reviews' => $events->where('format_status', CalendarEventFormatStatus::NeedsReview)->count(),
         ];
     }
@@ -471,7 +472,7 @@ new #[Title('Calendrier')] class extends Component
         </x-card>
 
         <x-card title="Temps / Revue">
-            <p class="text-2xl font-bold">{{ number_format($this->weeklyTotals['hours'], 2, ',', ' ') }} h</p>
+            <p class="text-2xl font-bold">{{ DurationFormatter::formatMinutes($this->weeklyTotals['minutes']) }}</p>
             <p class="mt-2 text-sm text-warning">{{ $this->weeklyTotals['reviews'] }} evenement(s) a revoir</p>
         </x-card>
     </div>

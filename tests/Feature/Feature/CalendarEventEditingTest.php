@@ -251,6 +251,25 @@ test('it requires a project in the main calendar drawer when the selected client
         ->assertHasErrors(['project_id']);
 });
 
+test('it displays weekly time using hours and minutes in the main calendar', function () {
+    CalendarEvent::factory()->create([
+        'starts_at' => '2026-04-20 09:00:00',
+        'ends_at' => '2026-04-20 11:15:00',
+        'format_status' => CalendarEventFormatStatus::Formatted,
+    ]);
+
+    CalendarEvent::factory()->create([
+        'starts_at' => '2026-04-22 14:00:00',
+        'ends_at' => '2026-04-22 16:30:00',
+        'format_status' => CalendarEventFormatStatus::Formatted,
+    ]);
+
+    Livewire::test('pages::calendar')
+        ->set('week', '2026-04-20')
+        ->assertSee('4h45')
+        ->assertDontSee('4,75 h');
+});
+
 test('it reschedules a calendar event from the main calendar and queues a remote push job', function () {
     Queue::fake();
 

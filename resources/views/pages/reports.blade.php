@@ -2,6 +2,7 @@
 
 use App\Enums\CalendarEventFormatStatus;
 use App\Models\CalendarEvent;
+use App\Support\DurationFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -33,7 +34,7 @@ new #[Title('Analyse')] class extends Component
         return [
             ['key' => 'label', 'label' => 'Libellé'],
             ['key' => 'events', 'label' => 'Événements'],
-            ['key' => 'hours', 'label' => 'Temps (h)'],
+            ['key' => 'hours', 'label' => 'Temps'],
             ['key' => 'cost', 'label' => 'Coût (€)'],
         ];
     }
@@ -65,6 +66,7 @@ new #[Title('Analyse')] class extends Component
                 'label' => $label,
                 'color' => $firstEvent?->client?->color,
                 'events' => $group->count(),
+                'minutes' => $minutes,
                 'hours' => round($minutes / 60, 2),
                 'cost' => round($cost, 2),
             ];
@@ -78,7 +80,7 @@ new #[Title('Analyse')] class extends Component
     {
         return [
             'events' => $this->rows->sum('events'),
-            'hours' => round($this->rows->sum('hours'), 2),
+            'minutes' => $this->rows->sum('minutes'),
             'cost' => round($this->rows->sum('cost'), 2),
         ];
     }
@@ -118,7 +120,7 @@ new #[Title('Analyse')] class extends Component
                 <p class="text-3xl font-bold">{{ $this->totals['events'] }}</p>
             </x-card>
             <x-card title="Temps">
-                <p class="text-3xl font-bold">{{ number_format($this->totals['hours'], 2, ',', ' ') }} h</p>
+                <p class="text-3xl font-bold">{{ DurationFormatter::formatMinutes($this->totals['minutes']) }}</p>
             </x-card>
             <x-card title="Coût">
                 <p class="text-3xl font-bold text-primary">{{ number_format($this->totals['cost'], 2, ',', ' ') }} €</p>
@@ -130,6 +132,9 @@ new #[Title('Analyse')] class extends Component
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
             @scope('cell_label', $row)
                 <x-client-indicator :name="$row['label']" :color="$row['color']" />
+            @endscope
+            @scope('cell_hours', $row)
+                {{ DurationFormatter::formatMinutes($row['minutes']) }}
             @endscope
         </x-table>
     </x-card>

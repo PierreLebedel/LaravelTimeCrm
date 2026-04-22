@@ -77,7 +77,7 @@ jobs:
       - name: Create .env
         run: |
           copy .env.example .env
-          php artisan key:generate
+          powershell -Command "(Get-Content .env) -replace '^APP_KEY=.*$', 'APP_KEY=${{ secrets.NATIVEPHP_BUILD_APP_KEY }}' | Set-Content .env"
         shell: cmd
 
       - name: Set version

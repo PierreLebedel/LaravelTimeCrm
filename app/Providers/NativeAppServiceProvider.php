@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Jobs\SyncCalendarAccountJob;
 use App\Models\CalendarAccount;
+use App\Support\NativeAppEnvBootstrapper;
 use Native\Desktop\Contracts\ProvidesPhpIni;
 use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
@@ -16,14 +17,16 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function boot(): void
     {
-        Menu::create();
-
-        Window::open()
-            ->maximized();
+        app(NativeAppEnvBootstrapper::class)->bootstrap();
 
         if (app()->runningUnitTests()) {
             return;
         }
+
+        Menu::create();
+
+        Window::open()
+            ->maximized();
 
         CalendarAccount::query()
             ->where('is_active', true)

@@ -22,14 +22,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Composer dependencies
         run: composer install --no-dev --optimize-autoloader
 
-      - name: Install NPM dependencies
+      - name: Install NPM dependencies (Laravel)
+        run: npm ci
+
+      - name: Install NPM dependencies (NativePHP)
         run: npm ci
         working-directory: vendor/nativephp/desktop/resources/electron
+
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
 
       - name: Build NativePHP
         run: php artisan native:build win x64

@@ -39,8 +39,8 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      - name: Build NativePHP
-        run: php artisan native:build win x64
+      - name: Publish NativePHP
+        run: php artisan native:publish win x64
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NATIVEPHP_UPDATER_PROVIDER: github

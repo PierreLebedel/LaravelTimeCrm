@@ -18,7 +18,9 @@ Dans le fichier `.env` :
 NATIVEPHP_APP_VERSION=1.0.1
 ```
 
-Sur GitHub :
+Sur GitHub, créer une draft release sur GitHub avec le tag v1.0.1
+
+Avec GIT :
 ```bash
 git commit -m "Release v1.0.1";
 git tag v1.0.1;

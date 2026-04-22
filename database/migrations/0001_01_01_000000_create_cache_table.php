@@ -13,10 +13,17 @@ return new class extends Migration
             $table->mediumText('value');
             $table->bigInteger('expiration')->index();
         });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->bigInteger('expiration')->index();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('cache_locks');
         Schema::dropIfExists('cache');
     }
 };

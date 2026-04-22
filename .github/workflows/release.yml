@@ -1,0 +1,8 @@
+- name: Build NativePHP
+  run: php artisan native:build win --release
+  env:
+    GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    NATIVEPHP_UPDATER_PROVIDER: github
+    GITHUB_OWNER: ${{ github.repository_owner }}
+    GITHUB_REPO: ${{ github.event.repository.name }}
+    NATIVEPHP_APP_VERSION: ${{ github.ref_name }}

@@ -6,6 +6,7 @@ use App\Jobs\SyncCalendarAccountJob;
 use App\Models\CalendarAccount;
 use App\Support\QueueWorkerManager;
 use Native\Desktop\Contracts\ProvidesPhpIni;
+use Native\Desktop\Facades\MenuBar;
 use Native\Desktop\Facades\Window;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
@@ -14,9 +15,12 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      * Executed once the native application has been booted.
      * Use this method to open windows, register global shortcuts, etc.
      */
-    public function boot(QueueWorkerManager $queueWorkerManager): void
+    public function boot(): void
     {
-        Window::open();
+        Window::open()
+            ->maximized();
+
+        MenuBar::hide();
 
         if (app()->runningUnitTests()) {
             return;
@@ -27,7 +31,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->pluck('id')
             ->each(fn (int $accountId) => SyncCalendarAccountJob::dispatch($accountId));
 
-        $queueWorkerManager->ensureRunning();
+        //app(QueueWorkerManager::class)->ensureRunning();
     }
 
     /**

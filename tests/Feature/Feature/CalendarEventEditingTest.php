@@ -261,7 +261,7 @@ test('it reschedules a calendar event from the main calendar and queues a remote
         'format_status' => CalendarEventFormatStatus::Formatted,
     ]);
 
-    Livewire::test('pages::calendar')
+    $component = Livewire::test('pages::calendar')
         ->call('rescheduleEvent', $event->id, '2026-04-22T13:15:00+02:00', '2026-04-22T14:45:00+02:00')
         ->assertHasNoErrors();
 
@@ -270,6 +270,7 @@ test('it reschedules a calendar event from the main calendar and queues a remote
     expect($event->starts_at->format('Y-m-d H:i'))->toBe('2026-04-22 13:15');
     expect($event->ends_at->format('Y-m-d H:i'))->toBe('2026-04-22 14:45');
     expect($event->sync_status)->toBe(CalendarEventSyncStatus::Queued);
+    expect(data_get($component->effects, 'xjs.0.expression'))->toContain('Synchronisation distante planifiee.');
 
     Queue::assertPushed(PushCalendarEventToRemoteJob::class, fn (PushCalendarEventToRemoteJob $job) => $job->calendarEventId === $event->id);
 });

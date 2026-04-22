@@ -282,6 +282,102 @@ XML, 207);
         ->and($event->ends_at->format('Y-m-d H:i:s'))->toBe('2026-04-21 11:15:00');
 });
 
+test('it converts utc caldav datetimes to the calendar timezone for display in the app', function () {
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+                <cal:calendar-timezone>Europe/Paris</cal:calendar-timezone>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/utc-event.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-utc"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example Corp//Calendar//EN
+BEGIN:VTIMEZONE
+TZID:Romance Standard Time
+BEGIN:STANDARD
+DTSTART:16010101T030000
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+RRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=-1SU;BYMONTH=10
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:16010101T020000
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+RRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=-1SU;BYMONTH=3
+END:DAYLIGHT
+END:VTIMEZONE
+BEGIN:VEVENT
+PRIORITY:5
+STATUS:CONFIRMED
+ORGANIZER;CN=Example Organizer:mailto:organizer@example.test
+ATTENDEE;RSVP=TRUE;CN=Example Attendee;PARTSTAT=ACCEPTED;ROLE=REQ-PARTICIPANT:mailto:attendee@example.test
+CLASS:PUBLIC
+TRANSP:OPAQUE
+SEQUENCE:0
+LOCATION;LANGUAGE=fr-FR:Visioconference
+UID:utc-event-1
+DTSTAMP:20260422T184902Z
+LAST-MODIFIED:20260422T184902Z
+DTSTART:20260421T100000Z
+DTEND:20260421T110000Z
+SUMMARY:Client test/Projet test : Revue sujet technique
+DESCRIPTION:Bonjour\,\n\nPeux-tu confirmer ce point ?\n\nMerci.
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $event = CalendarEvent::query()->sole();
+
+    expect($event->timezone)->toBe('Europe/Paris')
+        ->and($event->starts_at->timezone->getName())->toBe('Europe/Paris')
+        ->and($event->starts_at->format('Y-m-d H:i:s'))->toBe('2026-04-21 12:00:00')
+        ->and($event->ends_at->format('Y-m-d H:i:s'))->toBe('2026-04-21 13:00:00');
+});
+
 test('it assigns the default client locally without requiring a remote title rewrite', function () {
     $defaultClient = Client::factory()->create([
         'name' => 'Acme',

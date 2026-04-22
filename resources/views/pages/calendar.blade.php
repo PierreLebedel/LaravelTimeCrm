@@ -220,6 +220,8 @@ new #[Title('Calendrier')] class extends Component
 
         unset($this->fullCalendarEvents, $this->weeklyTotals);
         $this->dispatchFullCalendarRefresh();
+
+        $this->success('Synchronisation distante planifiee.');
     }
 
     public function resetEditor(): void

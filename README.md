@@ -14,7 +14,7 @@ php artisan native:publish win x64;
 
 ## Publier une release
 
-Dans le fichier `.env.example` :
+Dans les fichiers `.env` et surtout `.env.example` :
 ```env
 NATIVEPHP_APP_VERSION=1.0.1
 ```

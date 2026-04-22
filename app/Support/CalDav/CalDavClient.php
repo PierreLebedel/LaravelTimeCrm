@@ -99,10 +99,11 @@ XML,
 
         return collect($this->parseMultistatus($response->body()))
             ->filter(fn (array $resource): bool => filled($resource['calendar_data']))
-            ->map(function (array $resource): ?CalDavEvent {
+            ->map(function (array $resource) use ($calendar): ?CalDavEvent {
                 return $this->parseCalendarEvent(
                     externalId: $resource['href'],
                     etag: $resource['etag'],
+                    calendarTimezone: $calendar->timezone,
                     calendarData: $resource['calendar_data'],
                 );
             })
@@ -162,12 +163,12 @@ XML,
         return $resources;
     }
 
-    protected function parseCalendarEvent(string $externalId, ?string $etag, string $calendarData): ?CalDavEvent
+    protected function parseCalendarEvent(string $externalId, ?string $etag, ?string $calendarTimezone, string $calendarData): ?CalDavEvent
     {
         $properties = $this->extractVeventProperties($calendarData);
 
-        $startsAt = $this->parseDateTime($properties['DTSTART'] ?? null);
-        $endsAt = $this->parseDateTime($properties['DTEND'] ?? null);
+        $startsAt = $this->parseDateTime($properties['DTSTART'] ?? null, $calendarTimezone);
+        $endsAt = $this->parseDateTime($properties['DTEND'] ?? null, $calendarTimezone);
         $title = trim($properties['SUMMARY']['value'] ?? '');
 
         if ($startsAt === null || $endsAt === null || blank($title)) {
@@ -175,8 +176,8 @@ XML,
         }
 
         $description = $properties['DESCRIPTION']['value'] ?? null;
-        $sourceUpdatedAt = $this->parseDateTime($properties['LAST-MODIFIED'] ?? null)
-            ?? $this->parseDateTime($properties['DTSTAMP'] ?? null);
+        $sourceUpdatedAt = $this->parseDateTime($properties['LAST-MODIFIED'] ?? null, $calendarTimezone)
+            ?? $this->parseDateTime($properties['DTSTAMP'] ?? null, $calendarTimezone);
 
         return new CalDavEvent(
             icalUid: $properties['UID']['value'] ?? null,
@@ -293,21 +294,24 @@ XML,
     /**
      * @param  array{value: string, tzid: ?string}|null  $property
      */
-    protected function parseDateTime(?array $property): ?CarbonImmutable
+    protected function parseDateTime(?array $property, ?string $defaultTimezone = null): ?CarbonImmutable
     {
         if ($property === null || blank($property['value'])) {
             return null;
         }
 
         $value = trim($property['value']);
-        $timezone = $this->normalizeTimezone($property['tzid']) ?? config('app.timezone');
+        $timezone = $this->normalizeTimezone($property['tzid'])
+            ?? $this->normalizeTimezone($defaultTimezone)
+            ?? config('app.timezone');
 
         if (preg_match('/^\d{8}$/', $value) === 1) {
             return CarbonImmutable::createFromFormat('Ymd', $value, $timezone)->startOfDay();
         }
 
         if (str_ends_with($value, 'Z')) {
-            return CarbonImmutable::createFromFormat('Ymd\THis\Z', $value, 'UTC');
+            return CarbonImmutable::createFromFormat('Ymd\THis\Z', $value, 'UTC')
+                ->setTimezone($timezone);
         }
 
         return CarbonImmutable::createFromFormat('Ymd\THis', $value, $timezone);

@@ -1,8 +1,41 @@
-- name: Build NativePHP
-  run: php artisan native:build win --release
-  env:
-    GH_TOKEN: ${{ secrets.GH_TOKEN }}
-    NATIVEPHP_UPDATER_PROVIDER: github
-    GITHUB_OWNER: ${{ github.repository_owner }}
-    GITHUB_REPO: ${{ github.event.repository.name }}
-    NATIVEPHP_APP_VERSION: ${{ github.ref_name }}
+name: Build & Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, sqlite3, zip
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Install NPM dependencies
+        run: npm ci
+        working-directory: vendor/nativephp/desktop/resources/electron
+
+      - name: Build NativePHP
+        run: php artisan native:build win --release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          NATIVEPHP_UPDATER_PROVIDER: github
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+          NATIVEPHP_APP_VERSION: ${{ github.ref_name }}

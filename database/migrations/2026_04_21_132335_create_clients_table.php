@@ -6,14 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('clients', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
+            $table->string('color', 7)->nullable();
             $table->string('billing_mode')->default('hourly');
             $table->decimal('hourly_rate', 10, 2)->nullable();
             $table->decimal('daily_rate', 10, 2)->nullable();
@@ -22,9 +20,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('clients');

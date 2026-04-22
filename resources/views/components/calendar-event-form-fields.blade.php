@@ -4,6 +4,9 @@
     'clientOptions' => collect(),
     'projectOptions' => collect(),
     'projectWireKey' => 'calendar-event-project-select',
+    'projectRequired' => false,
+    'projectDisabled' => false,
+    'projectPlaceholder' => null,
     'titlePreview' => null,
     'titlePreviewLabel' => 'Titre distant',
 ])
@@ -19,23 +22,27 @@
         />
     @endif
 
-    <x-select
-        label="Client"
-        wire:model.live="client_id"
-        :options="$clientOptions"
-        placeholder="{{ config('crm.select_placeholder') }}"
-        required
-    />
-
-    <div wire:key="{{ $projectWireKey }}">
+    <div class="grid gap-4 md:grid-cols-2">
         <x-select
-            label="Projet"
-            wire:model.live="project_id"
-            :options="$projectOptions"
+            label="Client"
+            wire:model.live="client_id"
+            :options="$clientOptions"
             placeholder="{{ config('crm.select_placeholder') }}"
-            wire:loading.attr="disabled"
-            wire:target="client_id,project_id"
+            required
         />
+
+        <div wire:key="{{ $projectWireKey }}">
+            <x-select
+                label="Projet"
+                wire:model.live="project_id"
+                :options="$projectOptions"
+                placeholder="{{ $projectPlaceholder ?? config('crm.select_placeholder') }}"
+                :required="$projectRequired"
+                :disabled="$projectDisabled"
+                wire:loading.attr="disabled"
+                wire:target="client_id,project_id"
+            />
+        </div>
     </div>
 
     <x-input label="Titre" wire:model.blur="feature_description" required />

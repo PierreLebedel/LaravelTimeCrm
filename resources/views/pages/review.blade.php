@@ -8,6 +8,7 @@ use App\Support\CalendarEventEditor;
 use App\Support\CalendarEventTitleFormatter;
 use App\Support\QueueWorkerManager;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -61,24 +62,19 @@ new #[Title('Revue')] class extends Component
         $this->is_billable = $event->is_billable;
         $this->starts_at = $event->starts_at->format('Y-m-d\TH:i');
         $this->ends_at = $event->ends_at->format('Y-m-d\TH:i');
+        $this->syncProjectSelection();
     }
 
     public function updatedClientId(): void
     {
-        if ($this->project_id === '') {
-            return;
-        }
-
-        $project = Project::query()->find((int) $this->project_id);
-
-        if ($project === null || $this->client_id === '' || $project->client_id !== (int) $this->client_id) {
-            $this->project_id = '';
-        }
+        $this->syncProjectSelection();
     }
 
     public function updatedProjectId(): void
     {
         if ($this->project_id === '') {
+            $this->syncProjectSelection();
+
             return;
         }
 
@@ -89,11 +85,21 @@ new #[Title('Revue')] class extends Component
         }
 
         $this->client_id = (string) $project->client_id;
+        $this->syncProjectSelection();
     }
 
     public function save(CalendarEventEditor $editor, QueueWorkerManager $queueWorkerManager): void
     {
-        $validated = $this->validate([
+        $validator = Validator::make([
+            'event_id' => $this->event_id,
+            'client_id' => $this->client_id,
+            'project_id' => $this->project_id,
+            'feature_description' => $this->feature_description,
+            'description' => $this->description,
+            'is_billable' => $this->is_billable,
+            'starts_at' => $this->starts_at,
+            'ends_at' => $this->ends_at,
+        ], [
             'event_id' => ['required', 'exists:calendar_events,id'],
             'client_id' => ['required', 'exists:clients,id'],
             'project_id' => ['nullable'],
@@ -103,6 +109,20 @@ new #[Title('Revue')] class extends Component
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
         ]);
+
+        $validator->after(function ($validator): void {
+            if ($this->projectSelectionIsRequired() && blank($this->project_id)) {
+                $validator->errors()->add('project_id', 'Le projet est requis pour ce client.');
+
+                return;
+            }
+
+            if (filled($this->project_id) && ! Project::query()->whereKey((int) $this->project_id)->exists()) {
+                $validator->errors()->add('project_id', 'Le projet selectionne est invalide.');
+            }
+        });
+
+        $validated = $validator->validate();
 
         $event = CalendarEvent::query()->findOrFail($validated['event_id']);
 
@@ -176,10 +196,68 @@ new #[Title('Revue')] class extends Component
             ->sortBy('name');
     }
 
+    public function projectSelectionIsRequired(): bool
+    {
+        return $this->selectedClientProjectCount() > 0;
+    }
+
+    public function projectSelectionIsDisabled(): bool
+    {
+        return $this->client_id !== '' && $this->selectedClientProjectCount() === 0;
+    }
+
+    public function projectPlaceholder(): string
+    {
+        return $this->projectSelectionIsDisabled()
+            ? 'Aucun projet disponible'
+            : config('crm.select_placeholder');
+    }
+
     #[Computed]
     public function queueCount(): int
     {
         return CalendarEvent::query()->needsReview()->count();
+    }
+
+    protected function syncProjectSelection(): void
+    {
+        if ($this->project_id !== '') {
+            $project = Project::query()->find((int) $this->project_id);
+
+            if ($project === null || ($this->client_id !== '' && $project->client_id !== (int) $this->client_id)) {
+                $this->project_id = '';
+            }
+        }
+
+        if ($this->client_id === '') {
+            return;
+        }
+
+        $projectIds = Project::query()
+            ->where('client_id', (int) $this->client_id)
+            ->orderBy('name')
+            ->pluck('id');
+
+        if ($projectIds->count() === 1) {
+            $this->project_id = (string) $projectIds->first();
+
+            return;
+        }
+
+        if ($projectIds->isEmpty()) {
+            $this->project_id = '';
+        }
+    }
+
+    protected function selectedClientProjectCount(): int
+    {
+        if ($this->client_id === '') {
+            return 0;
+        }
+
+        return Project::query()
+            ->where('client_id', (int) $this->client_id)
+            ->count();
     }
 };
 ?>
@@ -192,7 +270,7 @@ new #[Title('Revue')] class extends Component
     </x-header>
 
     <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <x-card title="Evenement courant" subtitle="Client obligatoire, projet facultatif.">
+        <x-card title="Evenement courant" subtitle="Client obligatoire, projet conditionnel selon le client.">
             @if (! $this->currentEvent)
                 <div class="rounded-box border border-dashed border-base-300 p-6 text-base-content/60">
                     Plus aucun evenement a traiter.
@@ -228,6 +306,9 @@ new #[Title('Revue')] class extends Component
                         :client-options="$this->clientOptions"
                         :project-options="$this->projectOptions"
                         :project-wire-key="'review-project-select-' . ($client_id ?: 'none')"
+                        :project-required="$this->projectSelectionIsRequired()"
+                        :project-disabled="$this->projectSelectionIsDisabled()"
+                        :project-placeholder="$this->projectPlaceholder()"
                         :title-preview="$this->previewTitle()"
                         title-preview-label="Titre final"
                     />

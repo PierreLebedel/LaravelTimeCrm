@@ -12,7 +12,7 @@ use App\Support\CalDav\CalDavClient;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
-test('it edits a calendar event from the weekly calendar and queues a remote push job', function () {
+test('it edits a calendar event from the main calendar and queues a remote push job', function () {
     Queue::fake();
 
     $sourceClient = Client::factory()->create();
@@ -61,7 +61,7 @@ test('it edits a calendar event from the weekly calendar and queues a remote pus
     Queue::assertPushed(PushCalendarEventToRemoteJob::class, fn (PushCalendarEventToRemoteJob $job) => $job->calendarEventId === $event->id);
 });
 
-test('it creates a calendar event from the weekly calendar and queues a remote push job', function () {
+test('it creates a calendar event from the main calendar and queues a remote push job', function () {
     Queue::fake();
 
     $client = Client::factory()->create([
@@ -79,7 +79,7 @@ test('it creates a calendar event from the weekly calendar and queues a remote p
     ]);
 
     Livewire::test('pages::calendar')
-        ->call('createEventForDay', '2026-04-23')
+        ->call('createEventForSelection', '2026-04-23T09:00:00+02:00', '2026-04-23T10:00:00+02:00')
         ->set('calendar_id', (string) $calendar->id)
         ->set('client_id', (string) $client->id)
         ->set('project_id', (string) $project->id)
@@ -210,7 +210,48 @@ test('it assigns the matching client when a project is selected in the calendar 
         ->assertSet('client_id', (string) $client->id);
 });
 
-test('it reschedules a calendar event from the fullcalendar page and queues a remote push job', function () {
+test('it preselects the only project available for the selected client in the main calendar drawer', function () {
+    $client = Client::factory()->create();
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+    ]);
+
+    Livewire::test('pages::calendar')
+        ->set('client_id', (string) $client->id)
+        ->assertSet('project_id', (string) $project->id);
+});
+
+test('it requires a project in the main calendar drawer when the selected client has projects', function () {
+    Queue::fake();
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Plateforme',
+    ]);
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Support',
+    ]);
+    $calendar = Calendar::factory()->create([
+        'is_selected' => true,
+    ]);
+
+    Livewire::test('pages::calendar')
+        ->call('createEventForSelection', '2026-04-23T09:00:00+02:00', '2026-04-23T10:00:00+02:00')
+        ->set('calendar_id', (string) $calendar->id)
+        ->set('client_id', (string) $client->id)
+        ->set('project_id', '')
+        ->set('feature_description', 'Atelier de cadrage')
+        ->set('starts_at', '2026-04-23T09:00')
+        ->set('ends_at', '2026-04-23T10:15')
+        ->call('saveEvent')
+        ->assertHasErrors(['project_id']);
+});
+
+test('it reschedules a calendar event from the main calendar and queues a remote push job', function () {
     Queue::fake();
 
     $event = CalendarEvent::factory()->create([
@@ -220,7 +261,7 @@ test('it reschedules a calendar event from the fullcalendar page and queues a re
         'format_status' => CalendarEventFormatStatus::Formatted,
     ]);
 
-    Livewire::test('pages::calendar-fullcalendar')
+    Livewire::test('pages::calendar')
         ->call('rescheduleEvent', $event->id, '2026-04-22T13:15:00+02:00', '2026-04-22T14:45:00+02:00')
         ->assertHasNoErrors();
 
@@ -243,10 +284,52 @@ test('it deletes a calendar event from the fullcalendar drawer after remote dele
 
     app()->instance(CalDavClient::class, $client);
 
-    Livewire::test('pages::calendar-fullcalendar')
+    Livewire::test('pages::calendar')
         ->call('editEvent', $event->id)
         ->call('deleteEvent')
         ->assertHasNoErrors();
 
     expect(CalendarEvent::query()->find($event->id))->toBeNull();
+});
+
+test('it preselects the only project available in review when the selected client has a single project', function () {
+    $client = Client::factory()->create();
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+    ]);
+
+    Livewire::test('pages::review')
+        ->set('client_id', (string) $client->id)
+        ->assertSet('project_id', (string) $project->id);
+});
+
+test('it requires a project in review when the selected client has projects', function () {
+    Queue::fake();
+
+    $client = Client::factory()->create();
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Plateforme',
+    ]);
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Support',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'client_id' => null,
+        'project_id' => null,
+        'sync_status' => CalendarEventSyncStatus::Conflict,
+        'format_status' => CalendarEventFormatStatus::NeedsReview,
+    ]);
+
+    Livewire::test('pages::review')
+        ->assertSet('event_id', $event->id)
+        ->set('client_id', (string) $client->id)
+        ->set('project_id', '')
+        ->set('feature_description', 'Support')
+        ->set('starts_at', '2026-04-22T14:00')
+        ->set('ends_at', '2026-04-22T15:15')
+        ->call('save')
+        ->assertHasErrors(['project_id']);
 });

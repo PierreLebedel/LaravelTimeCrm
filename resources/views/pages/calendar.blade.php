@@ -12,6 +12,7 @@ use App\Support\CalendarEventTitleFormatter;
 use App\Support\QueueWorkerManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -50,37 +51,16 @@ new #[Title('Calendrier')] class extends Component
         $this->week = $this->weekStart()->toDateString();
     }
 
-    public function previousWeek(): void
-    {
-        $this->week = $this->weekStart()->subWeek()->toDateString();
-    }
-
-    public function nextWeek(): void
-    {
-        $this->week = $this->weekStart()->addWeek()->toDateString();
-    }
-
-    public function currentWeek(): void
-    {
-        $this->week = CarbonImmutable::now()->startOfWeek()->toDateString();
-    }
-
     public function updatedClientId(): void
     {
-        if ($this->project_id === '') {
-            return;
-        }
-
-        $project = Project::query()->find((int) $this->project_id);
-
-        if ($project === null || $this->client_id === '' || $project->client_id !== (int) $this->client_id) {
-            $this->project_id = '';
-        }
+        $this->syncProjectSelection();
     }
 
     public function updatedProjectId(): void
     {
         if ($this->project_id === '') {
+            $this->syncProjectSelection();
+
             return;
         }
 
@@ -91,6 +71,7 @@ new #[Title('Calendrier')] class extends Component
         }
 
         $this->client_id = (string) $project->client_id;
+        $this->syncProjectSelection();
     }
 
     public function updatedCalendarId(): void
@@ -98,17 +79,29 @@ new #[Title('Calendrier')] class extends Component
         $this->applyCalendarDefaults();
     }
 
-    public function createEventForDay(string $date): void
+    public function syncVisibleWeek(string $startDate): void
+    {
+        $week = CarbonImmutable::parse($startDate)->startOfWeek()->toDateString();
+
+        if ($this->week === $week) {
+            return;
+        }
+
+        $this->week = $week;
+        unset($this->fullCalendarEvents, $this->weeklyTotals);
+        $this->dispatchFullCalendarRefresh();
+    }
+
+    public function createEventForSelection(string $startDateTime, string $endDateTime): void
     {
         $this->resetEditor();
 
         $defaultCalendarId = $this->calendarOptions->first()['id'] ?? '';
-        $startsAt = CarbonImmutable::parse($date)->setTime(9, 0);
 
         $this->calendar_id = (string) $defaultCalendarId;
         $this->applyCalendarDefaults();
-        $this->starts_at = $startsAt->format('Y-m-d\TH:i');
-        $this->ends_at = $startsAt->addHour()->format('Y-m-d\TH:i');
+        $this->starts_at = CarbonImmutable::parse($startDateTime)->format('Y-m-d\TH:i');
+        $this->ends_at = CarbonImmutable::parse($endDateTime)->format('Y-m-d\TH:i');
         $this->is_billable = true;
         $this->drawer = true;
     }
@@ -116,7 +109,7 @@ new #[Title('Calendrier')] class extends Component
     public function editEvent(int $eventId): void
     {
         $event = CalendarEvent::query()
-            ->with(['calendar:id,name', 'client:id,name', 'project:id,name,client_id'])
+            ->with(['calendar:id,name', 'client:id,name,color', 'project:id,name,client_id'])
             ->findOrFail($eventId);
 
         $this->editingEventId = $event->id;
@@ -128,12 +121,23 @@ new #[Title('Calendrier')] class extends Component
         $this->is_billable = $event->is_billable;
         $this->starts_at = $event->starts_at->format('Y-m-d\TH:i');
         $this->ends_at = $event->ends_at->format('Y-m-d\TH:i');
+        $this->syncProjectSelection();
         $this->drawer = true;
     }
 
     public function saveEvent(CalendarEventEditor $editor, QueueWorkerManager $queueWorkerManager): void
     {
-        $validated = $this->validate([
+        $validator = Validator::make([
+            'calendar_id' => $this->calendar_id,
+            'editingEventId' => $this->editingEventId,
+            'client_id' => $this->client_id,
+            'project_id' => $this->project_id,
+            'feature_description' => $this->feature_description,
+            'description' => $this->description,
+            'is_billable' => $this->is_billable,
+            'starts_at' => $this->starts_at,
+            'ends_at' => $this->ends_at,
+        ], [
             'calendar_id' => ['required_without:editingEventId', 'exists:calendars,id'],
             'editingEventId' => ['nullable', 'exists:calendar_events,id'],
             'client_id' => ['required', 'exists:clients,id'],
@@ -144,6 +148,20 @@ new #[Title('Calendrier')] class extends Component
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
         ]);
+
+        $validator->after(function ($validator): void {
+            if ($this->projectSelectionIsRequired() && blank($this->project_id)) {
+                $validator->errors()->add('project_id', 'Le projet est requis pour ce client.');
+
+                return;
+            }
+
+            if (filled($this->project_id) && ! Project::query()->whereKey((int) $this->project_id)->exists()) {
+                $validator->errors()->add('project_id', 'Le projet selectionne est invalide.');
+            }
+        });
+
+        $validated = $validator->validate();
 
         $payload = [
             'calendar_id' => $validated['calendar_id'] !== '' ? (int) $validated['calendar_id'] : null,
@@ -163,7 +181,8 @@ new #[Title('Calendrier')] class extends Component
         PushCalendarEventToRemoteJob::dispatch($updatedEvent->id)->afterCommit();
         $queueWorkerManager->ensureRunning();
 
-        unset($this->eventsByDay, $this->weeklyTotals, $this->currentEvent);
+        unset($this->fullCalendarEvents, $this->weeklyTotals, $this->currentEvent);
+        $this->dispatchFullCalendarRefresh();
 
         $this->success('Evenement enregistre et synchronisation distante planifiee.');
         $this->resetEditor();
@@ -182,10 +201,29 @@ new #[Title('Calendrier')] class extends Component
         $client->deleteEvent($event);
         $event->delete();
 
-        unset($this->eventsByDay, $this->weeklyTotals, $this->currentEvent);
+        unset($this->fullCalendarEvents, $this->weeklyTotals, $this->currentEvent);
+        $this->dispatchFullCalendarRefresh();
 
         $this->success('Evenement supprime.');
         $this->resetEditor();
+    }
+
+    public function rescheduleEvent(
+        int $eventId,
+        string $startDateTime,
+        string $endDateTime,
+        CalendarEventEditor $editor,
+        QueueWorkerManager $queueWorkerManager,
+    ): void {
+        $event = CalendarEvent::query()->findOrFail($eventId);
+
+        $editor->reschedule($event, $startDateTime, $endDateTime);
+
+        PushCalendarEventToRemoteJob::dispatch($event->id)->afterCommit();
+        $queueWorkerManager->ensureRunning();
+
+        unset($this->fullCalendarEvents, $this->weeklyTotals);
+        $this->dispatchFullCalendarRefresh();
     }
 
     public function resetEditor(): void
@@ -203,7 +241,7 @@ new #[Title('Calendrier')] class extends Component
         }
 
         return CalendarEvent::query()
-            ->with(['calendar:id,name', 'client:id,name,color', 'project:id,name'])
+            ->with(['calendar:id,name,color', 'client:id,name,color', 'project:id,name'])
             ->find($this->editingEventId);
     }
 
@@ -245,6 +283,23 @@ new #[Title('Calendrier')] class extends Component
             ->sortBy('name');
     }
 
+    public function projectSelectionIsRequired(): bool
+    {
+        return $this->selectedClientProjectCount() > 0;
+    }
+
+    public function projectSelectionIsDisabled(): bool
+    {
+        return $this->client_id !== '' && $this->selectedClientProjectCount() === 0;
+    }
+
+    public function projectPlaceholder(): string
+    {
+        return $this->projectSelectionIsDisabled()
+            ? 'Aucun projet disponible'
+            : config('crm.select_placeholder');
+    }
+
     #[Computed]
     public function calendarOptions(): Collection
     {
@@ -255,62 +310,37 @@ new #[Title('Calendrier')] class extends Component
             ->get()
             ->map(fn (Calendar $calendar) => [
                 'id' => $calendar->id,
-                'name' => ($calendar->account?->name ? $calendar->account->name . ' - ' : '') . $calendar->name,
+                'name' => ($calendar->account?->name ? $calendar->account->name.' - ' : '').$calendar->name,
             ]);
     }
 
-    public function previewTitle(): string
-    {
-        $client = $this->clientOptions->firstWhere('id', (int) $this->client_id);
-
-        if ($client === null) {
-            return 'Selectionne un client pour generer le titre.';
-        }
-
-        $project = $this->project_id !== ''
-            ? Project::query()->find((int) $this->project_id)
-            : null;
-
-        return CalendarEventTitleFormatter::format($client, $project, $this->feature_description ?: 'feature description');
-    }
-
-    public function drawerTitle(): string
-    {
-        return $this->editingEventId === null ? 'Nouvel evenement' : 'Editer l evenement';
-    }
-
-    protected function applyCalendarDefaults(): void
-    {
-        $this->project_id = '';
-
-        if ($this->calendar_id === '') {
-            return;
-        }
-
-        $calendar = Calendar::query()
-            ->with('account')
-            ->find((int) $this->calendar_id);
-
-        $this->client_id = (string) ($calendar?->account?->default_client_id ?? '');
-    }
-
     #[Computed]
-    public function days(): array
-    {
-        return collect(range(0, 6))
-            ->map(fn (int $offset) => $this->weekStart()->addDays($offset))
-            ->all();
-    }
-
-    #[Computed]
-    public function eventsByDay(): array
+    public function fullCalendarEvents(): array
     {
         return CalendarEvent::query()
             ->with(['client:id,name,color', 'project:id,name', 'calendar:id,name,color'])
             ->forWeek($this->weekStart())
             ->orderBy('starts_at')
             ->get()
-            ->groupBy(fn (CalendarEvent $event) => $event->starts_at->toDateString())
+            ->map(function (CalendarEvent $event): array {
+                $color = $event->client?->color ?? $event->calendar?->color ?? '#64748b';
+
+                return [
+                    'id' => (string) $event->id,
+                    'title' => $event->title,
+                    'start' => $event->starts_at->toIso8601String(),
+                    'end' => $event->ends_at->toIso8601String(),
+                    'backgroundColor' => $color,
+                    'borderColor' => $color,
+                    'textColor' => '#111827',
+                    'extendedProps' => [
+                        'client' => $event->client?->name,
+                        'project' => $event->project?->name,
+                        'isBillable' => $event->is_billable,
+                        'needsReview' => $event->format_status === CalendarEventFormatStatus::NeedsReview,
+                    ],
+                ];
+            })
             ->all();
     }
 
@@ -330,6 +360,26 @@ new #[Title('Calendrier')] class extends Component
         ];
     }
 
+    public function previewTitle(): string
+    {
+        $client = $this->clientOptions->firstWhere('id', (int) $this->client_id);
+
+        if ($client === null) {
+            return 'Selectionne un client pour generer le titre.';
+        }
+
+        $project = $this->project_id !== ''
+            ? Project::query()->find((int) $this->project_id)
+            : null;
+
+        return CalendarEventTitleFormatter::format($client, $project, $this->feature_description ?: 'Title');
+    }
+
+    public function drawerTitle(): string
+    {
+        return $this->editingEventId === null ? 'Nouvel evenement' : 'Editer l evenement';
+    }
+
     public function weekStart(): CarbonImmutable
     {
         $date = $this->week !== '' ? CarbonImmutable::parse($this->week) : CarbonImmutable::now();
@@ -341,25 +391,81 @@ new #[Title('Calendrier')] class extends Component
     {
         return $this->weekStart()->endOfWeek();
     }
+
+    protected function applyCalendarDefaults(): void
+    {
+        $this->project_id = '';
+
+        if ($this->calendar_id === '') {
+            return;
+        }
+
+        $calendar = Calendar::query()
+            ->with('account')
+            ->find((int) $this->calendar_id);
+
+        $this->client_id = (string) ($calendar?->account?->default_client_id ?? '');
+        $this->syncProjectSelection();
+    }
+
+    protected function dispatchFullCalendarRefresh(): void
+    {
+        $this->dispatch('fullcalendar-refresh');
+    }
+
+    protected function syncProjectSelection(): void
+    {
+        if ($this->project_id !== '') {
+            $project = Project::query()->find((int) $this->project_id);
+
+            if ($project === null || ($this->client_id !== '' && $project->client_id !== (int) $this->client_id)) {
+                $this->project_id = '';
+            }
+        }
+
+        if ($this->client_id === '') {
+            return;
+        }
+
+        $projectIds = Project::query()
+            ->where('client_id', (int) $this->client_id)
+            ->orderBy('name')
+            ->pluck('id');
+
+        if ($projectIds->count() === 1) {
+            $this->project_id = (string) $projectIds->first();
+
+            return;
+        }
+
+        if ($projectIds->isEmpty()) {
+            $this->project_id = '';
+        }
+    }
+
+    protected function selectedClientProjectCount(): int
+    {
+        if ($this->client_id === '') {
+            return 0;
+        }
+
+        return Project::query()
+            ->where('client_id', (int) $this->client_id)
+            ->count();
+    }
 };
 ?>
 
-<div>
+<div class="space-y-6">
     <x-header
-        title="Calendrier hebdomadaire"
-        subtitle="Navigation semaine par semaine, revue des evenements et edition directe depuis la grille."
+        title="Calendrier"
+        subtitle="Vue hebdomadaire interactive avec drag and drop, resize et creation par selection de plage."
         separator
-    >
-        <x-slot:actions>
-            <x-button label="Semaine precedente" icon="tabler.chevron-left" wire:click="previousWeek" />
-            <x-button label="Semaine actuelle" icon="tabler.calendar-week" wire:click="currentWeek" />
-            <x-button label="Semaine suivante" icon-right="tabler.chevron-right" wire:click="nextWeek" class="btn-primary" />
-        </x-slot:actions>
-    </x-header>
+    />
 
-    <div class="mb-6 grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-3">
         <x-card title="Periode" subtitle="{{ $this->weekStart()->translatedFormat('d M Y') }} -> {{ $this->weekEnd()->translatedFormat('d M Y') }}">
-            <p class="text-sm text-base-content/70">Les evenements sont cliquables pour edition locale puis push distant via job.</p>
+            <p class="text-sm text-base-content/70">Glisse un evenement pour le deplacer ou tire sa bordure pour ajuster la duree.</p>
         </x-card>
 
         <x-card title="Evenements">
@@ -372,72 +478,18 @@ new #[Title('Calendrier')] class extends Component
         </x-card>
     </div>
 
-    <div class="grid gap-4 xl:grid-cols-7">
-        @foreach ($this->days as $day)
-            <x-card class="bg-base-100/80 shadow-sm">
-                <div class="mb-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.3em] text-base-content/40">{{ $day->translatedFormat('D') }}</p>
-                            <p class="mt-1 text-lg font-semibold">{{ $day->translatedFormat('d M') }}</p>
-                        </div>
+    <x-card class="overflow-hidden p-0">
 
-                        <x-button
-                            icon="tabler.plus"
-                            class="btn-ghost btn-sm"
-                            wire:click="createEventForDay('{{ $day->toDateString() }}')"
-                        />
-                    </div>
-                </div>
+        <script type="application/json" data-fullcalendar-events>@json($this->fullCalendarEvents)</script>
 
-                <div class="space-y-3">
-                    @forelse ($this->eventsByDay[$day->toDateString()] ?? [] as $event)
-                        <button
-                            type="button"
-                            class="w-full rounded-box border border-base-300 bg-base-200/60 p-3 text-left transition hover:border-primary/40 hover:bg-base-200"
-                            style="border-left-width: 4px; border-left-color: {{ $event->client?->color ?? $event->calendar?->color ?? 'transparent' }};"
-                            wire:key="calendar-event-{{ $event->id }}"
-                            wire:click="editEvent({{ $event->id }})"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-sm font-semibold">{{ $event->title }}</p>
-                                    <p class="mt-1 text-xs text-base-content/60">{{ $event->starts_at->format('H:i') }} - {{ $event->ends_at->format('H:i') }}</p>
-                                </div>
-
-                                @if ($event->client?->color || $event->calendar?->color)
-                                    <span class="mt-1 size-3 rounded-full border border-base-300" style="background-color: {{ $event->client?->color ?? $event->calendar?->color }}"></span>
-                                @endif
-                            </div>
-
-                            <div class="mt-3 space-y-1 text-xs text-base-content/70">
-                                @if ($event->client?->name)
-                                    <p class="font-semibold">
-                                        <x-client-indicator :name="$event->client->name" :color="$event->client->color" size="xs" />
-                                    </p>
-                                @else
-                                    <p class="font-semibold">A revoir</p>
-                                @endif
-                                @if ($event->project)
-                                    <p>{{ $event->project->name }}</p>
-                                @endif
-                                @unless ($event->is_billable)
-                                    <x-badge value="non facturable" class="badge-ghost" />
-                                @endunless
-                                @if ($event->format_status === CalendarEventFormatStatus::NeedsReview)
-                                    <x-badge value="A revoir" class="badge-warning" />
-                                @endif
-                            </div>
-                        </button>
-                    @empty
-                        <div class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/50">
-                            Aucun evenement.
-                        </div>
-                    @endforelse
-                </div>
-            </x-card>
-        @endforeach
-    </div>
+        <div wire:ignore>
+            <div
+                data-fullcalendar
+                data-initial-date="{{ $this->weekStart()->toDateString() }}"
+                data-timezone="{{ config('app.timezone') }}"
+            ></div>
+        </div>
+    </x-card>
 
     <x-drawer wire:model="drawer" title="{{ $this->drawerTitle() }}" right separator with-close-button class="w-full lg:w-[32rem]">
         @if ($this->editingEventId === null || $this->currentEvent)
@@ -447,18 +499,18 @@ new #[Title('Calendrier')] class extends Component
                         class="-m-4 mb-0 rounded-box bg-base-200 p-4"
                         style="border-left: 4px solid {{ $this->currentEvent?->client?->color ?? $this->currentCalendar?->color ?? 'transparent' }};"
                     >
-                    <p class="text-xs uppercase tracking-[0.3em] text-base-content/40">{{ $this->currentCalendar?->name ?? $this->currentEvent?->calendar?->name ?? 'Agenda' }}</p>
-                    <p class="mt-2 text-sm font-semibold">{{ $this->currentEvent?->title ?? 'Creation d un nouvel evenement local' }}</p>
-                    @if ($this->currentEvent?->client?->color)
-                        <div class="mt-2 text-xs text-base-content/60">
-                            <x-client-indicator :name="$this->currentEvent->client->name" :color="$this->currentEvent->client->color" />
-                        </div>
-                    @endif
-                    @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
-                        <div class="mt-2">
-                            <x-badge value="non facturable" class="badge-ghost" />
-                        </div>
-                    @endif
+                        <p class="text-xs uppercase tracking-[0.3em] text-base-content/40">{{ $this->currentCalendar?->name ?? $this->currentEvent?->calendar?->name ?? 'Agenda' }}</p>
+                        <p class="mt-2 text-sm font-semibold">{{ $this->currentEvent?->title ?? 'Creation d un nouvel evenement local' }}</p>
+                        @if ($this->currentEvent?->client?->color)
+                            <div class="mt-2 text-xs text-base-content/60">
+                                <x-client-indicator :name="$this->currentEvent->client->name" :color="$this->currentEvent->client->color" />
+                            </div>
+                        @endif
+                        @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
+                            <div class="mt-2">
+                                <x-badge value="non facturable" class="badge-ghost" />
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -467,7 +519,10 @@ new #[Title('Calendrier')] class extends Component
                     :calendar-options="$this->calendarOptions"
                     :client-options="$this->clientOptions"
                     :project-options="$this->projectOptions"
-                    :project-wire-key="'calendar-project-select-' . ($client_id ?: 'none')"
+                    :project-wire-key="'fullcalendar-project-select-' . ($client_id ?: 'none')"
+                    :project-required="$this->projectSelectionIsRequired()"
+                    :project-disabled="$this->projectSelectionIsDisabled()"
+                    :project-placeholder="$this->projectPlaceholder()"
                     :title-preview="$this->previewTitle()"
                     title-preview-label="Titre distant"
                 />
@@ -488,3 +543,142 @@ new #[Title('Calendrier')] class extends Component
         </x-slot:actions>
     </x-drawer>
 </div>
+
+@assets
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>
+@endassets
+
+<script>
+    const calendarElement = $wire.$el.querySelector('[data-fullcalendar]');
+    let calendar = null;
+
+    const escapeHtml = (value) => {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    };
+
+    const renderEvents = (events) => {
+        if (! calendar) {
+            return;
+        }
+
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
+    };
+
+    const readEventsFromDom = () => {
+        const fullCalendarEventsElement = $wire.$el.querySelector('[data-fullcalendar-events]');
+
+        return JSON.parse(fullCalendarEventsElement?.textContent ?? '[]');
+    };
+
+    const persistEventMove = async (info) => {
+        const end = info.event.end ?? info.event.start;
+
+        try {
+            await $wire.rescheduleEvent(
+                Number(info.event.id),
+                info.event.start.toISOString(),
+                end.toISOString(),
+            );
+        } catch (error) {
+            info.revert();
+        }
+    };
+
+    if (calendarElement) {
+        const fullCalendarInitialDate = calendarElement.dataset.initialDate;
+        const fullCalendarTimezone = calendarElement.dataset.timezone;
+        const fullCalendarEvents = readEventsFromDom();
+
+        calendar = new FullCalendar.Calendar(calendarElement, {
+            initialView: 'timeGridWeek',
+            initialDate: fullCalendarInitialDate,
+            locale: 'fr',
+            timeZone: fullCalendarTimezone,
+            firstDay: 1,
+            allDaySlot: false,
+            nowIndicator: true,
+            editable: true,
+            selectable: true,
+            selectMirror: true,
+            height: '528px',
+            slotDuration: '00:30:00',
+            slotMinTime: '00:00:00',
+            slotMaxTime: '24:00:00',
+            scrollTime: '08:50:00',
+            scrollTimeReset: false,
+            snapDuration: '00:15:00',
+            slotLabelFormat: {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            },
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'timeGridWeek,timeGridDay',
+            },
+            events: fullCalendarEvents,
+            eventClick: (info) => {
+                $wire.editEvent(Number(info.event.id));
+            },
+            select: (info) => {
+                $wire.createEventForSelection(info.startStr, info.endStr);
+                calendar.unselect();
+            },
+            datesSet: (info) => {
+                $wire.syncVisibleWeek(info.startStr);
+            },
+            eventDrop: persistEventMove,
+            eventResize: persistEventMove,
+            eventContent: (arg) => {
+                const client = arg.event.extendedProps.client;
+                const project = arg.event.extendedProps.project;
+                const needsReview = arg.event.extendedProps.needsReview;
+                const isBillable = arg.event.extendedProps.isBillable;
+                const lines = [
+                    `<div class="fc-event-title font-semibold">${escapeHtml(arg.event.title)}</div>`,
+                ];
+
+                if (client || project || needsReview || ! isBillable) {
+                    const meta = [];
+
+                    if (client) {
+                        meta.push(escapeHtml(client));
+                    }
+
+                    if (project) {
+                        meta.push(escapeHtml(project));
+                    }
+
+                    if (needsReview) {
+                        meta.push('A revoir');
+                    }
+
+                    if (! isBillable) {
+                        meta.push('Non facturable');
+                    }
+
+                    lines.push(`<div class="fc-event-subtitle text-[11px] opacity-80">${meta.join(' - ')}</div>`);
+                }
+
+                return {
+                    html: `<div class="">${lines.join('')}</div>`,
+                };
+            },
+        });
+
+        calendar.render();
+    }
+
+    this.$on('fullcalendar-refresh', () => {
+        queueMicrotask(() => {
+            renderEvents(readEventsFromDom());
+        });
+    });
+</script>

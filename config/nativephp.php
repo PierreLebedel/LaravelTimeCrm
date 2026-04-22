@@ -167,6 +167,7 @@ return [
     'prebuild' => [
         'npm run build',
         'php artisan optimize',
+        'php artisan icons:cache',
     ],
 
     'postbuild' => [

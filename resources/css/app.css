@@ -57,3 +57,7 @@ body {
 .fc-event{
     overflow: hidden;
 }
+.fc .fc-button .fc-icon{
+    font-size:1em;
+    vertical-align: center;
+}

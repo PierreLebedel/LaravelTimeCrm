@@ -27,7 +27,6 @@
 
             <x-menu activate-by-route>
                 <x-menu-item title="Calendrier" icon="tabler.calendar-week" link="{{ route('calendar') }}" exact />
-                <x-menu-item title="Calendrier FC" icon="tabler.layout-grid" link="{{ route('calendar.fullcalendar') }}" />
                 <x-menu-item title="Clients" icon="tabler.building-skyscraper" link="{{ route('clients') }}" />
                 <x-menu-item title="Projets" icon="tabler.briefcase" link="{{ route('projects') }}" />
                 <x-menu-item title="Agendas" icon="tabler.link" link="{{ route('calendars') }}" />

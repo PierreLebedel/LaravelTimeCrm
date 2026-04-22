@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('calendar_events', function (Blueprint $table) {
@@ -16,6 +13,7 @@ return new class extends Migration
             $table->foreignId('calendar_id')->constrained()->restrictOnDelete();
             $table->foreignId('client_id')->nullable()->constrained()->restrictOnDelete();
             $table->foreignId('project_id')->nullable()->constrained()->restrictOnDelete();
+            $table->string('ical_uid')->nullable();
             $table->string('external_id');
             $table->string('external_etag')->nullable();
             $table->timestamp('starts_at');
@@ -23,6 +21,7 @@ return new class extends Migration
             $table->string('timezone')->nullable();
             $table->string('title');
             $table->text('description')->nullable();
+            $table->boolean('is_billable')->default(true);
             $table->string('feature_description')->nullable();
             $table->string('sync_status')->default('synced');
             $table->string('format_status')->default('needs_review');
@@ -36,9 +35,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('calendar_events');

@@ -87,10 +87,14 @@ Conventions :
 - labels explicites en francais ;
 - placeholders select via `Choisissez` quand il n'y a pas de valeur par defaut ;
 - les formulaires repetes doivent etre mutualises si possible ;
+- dans les formulaires d'evenement, les selects `Client` et `Projet` sont alignes sur une meme ligne a partir du breakpoint `md` ;
 - pour le couple `client / projet`, le select `Projet` peut afficher tous les projets tant qu'aucun client n'est choisi ;
 - dans ce cas, le libelle du projet inclut aussi le client pour rester lisible ;
 - choisir un projet doit renseigner automatiquement le client correspondant ;
 - si le client change et ne correspond plus au projet choisi, le projet est reinitialise ;
+- si le client choisi possede un seul projet, celui-ci est preselectionne ;
+- si le client choisi possede plusieurs projets, le select `Projet` devient requis ;
+- si le client choisi ne possede aucun projet, le select `Projet` reste visible mais desactive avec le libelle `Aucun projet disponible` ;
 - le select dependant `Projet` doit etre desactive pendant son rechargement Livewire ;
 - les dates / heures utilisent un pas de `15 minutes` ;
 - les erreurs doivent rester proches du champ via le comportement standard MaryUI / Livewire.
@@ -164,7 +168,7 @@ Regles :
 - select dependant `client <-> projet`
 - badge pour les statuts courts
 - indicateur couleur pour les clients
-- experimentation FullCalendar = grille JS tierce dans `wire:ignore`, mais drawer et formulaire restent ceux du systeme MaryUI
+- FullCalendar = grille JS tierce dans `wire:ignore`, mais drawer et formulaire restent ceux du systeme MaryUI
 
 ## Evolution
 

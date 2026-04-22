@@ -144,17 +144,17 @@ Statuts en place :
 5. Le titre local est reecrit automatiquement.
 6. Un job `PushCalendarEventToRemoteJob` est dispatch pour pousser la mise a jour distante.
 
-### Test FullCalendar
+### Calendrier FullCalendar
 
-1. Une page Livewire dediee expose une vue `timeGridWeek` FullCalendar.
+1. La page `Calendrier` expose une vue `timeGridWeek` FullCalendar.
 2. Les evenements locaux de la semaine visible y sont projetes avec leur couleur client.
-3. Un clic ouvre le meme drawer metier que la vue hebdomadaire historique.
+3. Un clic ouvre le drawer metier partage pour l'edition.
 4. Une selection de plage ouvre la creation d'evenement avec agenda, client, projet, titre et description.
 5. Un drag and drop ou un resize met a jour `starts_at` et `ends_at`, puis queue un `PushCalendarEventToRemoteJob`.
 
 ### Creation d'un evenement
 
-1. Depuis la vue hebdomadaire, l'utilisateur peut creer un evenement a partir d'un jour donne.
+1. Depuis la vue FullCalendar, l'utilisateur cree un evenement en selectionnant une plage.
 2. Le drawer mutualise le meme formulaire que l'edition et la revue.
 3. En creation, le formulaire ajoute le choix de l'agenda cible.
 4. L'application genere immediatement un `UID` iCal et un chemin `.ics` local pour reutiliser le pipeline de push distant existant.
@@ -169,6 +169,9 @@ Statuts en place :
 5. Dans les formulaires d'edition, tant qu'aucun client n'est choisi, tous les projets restent visibles.
 6. Si un projet est choisi en premier, le client correspondant est selectionne automatiquement.
 7. Si le client change ensuite vers un autre client, le projet est reinitialise s'il n'est plus compatible.
+8. Si le client choisi n'a qu'un seul projet, celui-ci est selectionne automatiquement.
+9. Si le client choisi a plusieurs projets, le champ `Projet` devient obligatoire.
+10. Si le client choisi n'a aucun projet, le champ `Projet` reste visible mais desactive.
 
 ### Facturation des evenements
 
@@ -219,9 +222,12 @@ Statuts en place :
 - icones Tabler via `secondnetwork/blade-tabler-icons` ;
 - notation `tabler.nom-icone` dans les composants MaryUI ;
 - selects client/projet avec option par defaut `Choisissez` ;
+- selects `Client` et `Projet` affiches sur la meme ligne dans les formulaires d'evenement ;
 - select `Projet` desactive pendant son rechargement Livewire ;
+- select `Projet` requis si le client courant possede au moins un projet ;
+- select `Projet` automatiquement renseigne si le client courant n'a qu'un seul projet ;
 - le couple `client / projet` fonctionne dans les deux sens dans les formulaires d'evenement ;
-- integration FullCalendar isolee dans une page de test, sans remplacement de la vue hebdomadaire initiale.
+- FullCalendar constitue maintenant la vue calendrier principale.
 - champs creation / edition / revue mutualises via un composant Blade partage.
 
 ## Limites actuelles

@@ -25,13 +25,16 @@ Permettre de gerer :
 - Le titre cible d'un evenement est : `Client/Projet : Title`, ou `Client : Title` si aucun projet n'est lie.
 - Lorsqu'une connexion DAV revele des evenements non conformes, l'utilisateur doit les traiter un par un pour les associer correctement.
 - Un client ou un projet ne peut pas etre supprime tant qu'au moins un evenement d'agenda lui est rattache.
-- L'application doit offrir une vue hebdomadaire du calendrier avec navigation semaine par semaine.
+- L'application doit offrir une vue hebdomadaire du calendrier basee sur FullCalendar.
 - Un clic sur un evenement ouvre un drawer d'edition.
-- Chaque jour de la vue hebdomadaire propose un bouton de creation d'evenement.
+- La creation d'evenement se fait par selection d'une plage dans la grille hebdomadaire.
 - L'edition autorise `client`, `projet`, `titre`, `description detaillee`, `date` et `heure`.
 - La creation autorise aussi le choix de l'agenda cible.
 - Dans les formulaires d'evenement, les projets restent visibles meme avant selection du client.
 - Le choix d'un projet peut definir automatiquement le client correspondant.
+- Si un client a des projets, le champ `Projet` devient requis dans les formulaires d'evenement.
+- Si un client n'a qu'un seul projet, ce projet est preselectionne automatiquement.
+- Si un client n'a aucun projet, le champ `Projet` reste visible mais apparait desactive.
 - La saisie date / heure se fait avec une precision de `15 minutes`.
 - Lorsqu'un evenement est edite ou passe en revue, son titre distant doit etre reecrit.
 - Les synchronisations DAV et les pushes distants utilisent le systeme de jobs Laravel.
@@ -51,10 +54,8 @@ Permettre de gerer :
 
 ## Principes UX proposes
 
-- Une page `Calendrier` centree sur la semaine courante.
-- La page `Calendrier` permet aussi de creer un evenement local depuis chaque jour de la semaine.
-- Une page `Calendrier FullCalendar` permet de tester une vue hebdomadaire interactive avec drag and drop et resize.
-- La vue hebdomadaire historique est conservee a cote pour comparaison pendant cette phase de test.
+- Une page `Calendrier` centree sur la semaine courante via FullCalendar.
+- La page `Calendrier` permet de creer un evenement local par selection de plage, puis edition dans un drawer.
 - Une page `Agendas` pour connecter les agendas DAV et forcer une synchronisation.
 - La page `Agendas` permet aussi d'activer ou desactiver chaque agenda distant.
 - La page `Agendas` permet aussi de definir un client par defaut par compte DAV.

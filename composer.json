@@ -9,8 +9,8 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
-        "laravel/framework": "^13.0",
+        "php": "^8.4",
+        "laravel/framework": "^13.6",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.2",
         "nativephp/desktop": "dev-main",

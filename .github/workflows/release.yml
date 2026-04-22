@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -36,18 +39,31 @@ jobs:
 
       - name: Create .env
         run: |
-          cp .env.example .env
+          copy .env.example .env
           php artisan key:generate
+        shell: cmd
 
       - name: Set version
         run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
         shell: bash
 
+      - name: Check GH_TOKEN presence
+        shell: bash
+        run: |
+          if [ -n "$GH_TOKEN" ]; then
+            echo "GH_TOKEN present"
+          else
+            echo "GH_TOKEN missing"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publish NativePHP
         run: php artisan native:publish win x64
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NATIVEPHP_UPDATER_PROVIDER: github
           GITHUB_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO: ${{ github.event.repository.name }}

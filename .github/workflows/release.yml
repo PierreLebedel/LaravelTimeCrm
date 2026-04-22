@@ -46,6 +46,7 @@ jobs:
       - name: Publish NativePHP
         run: php artisan native:publish win x64
         env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NATIVEPHP_UPDATER_PROVIDER: github
           GITHUB_OWNER: ${{ github.repository_owner }}

@@ -9,6 +9,7 @@ php artisan queue:work;
 
 ```bash
 php artisan native:build win x64;
+php artisan native:publish win x64;
 ```
 
 ## Publier une release

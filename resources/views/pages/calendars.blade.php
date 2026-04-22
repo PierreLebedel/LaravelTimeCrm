@@ -4,7 +4,6 @@ use App\Jobs\SyncCalendarAccountJob;
 use App\Models\Calendar;
 use App\Models\CalendarAccount;
 use App\Models\Client;
-use App\Support\QueueWorkerManager;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -80,12 +79,11 @@ new #[Title('Agendas')] class extends Component
         $this->drawer = true;
     }
 
-    public function syncAccount(int $accountId, QueueWorkerManager $queueWorkerManager): void
+    public function syncAccount(int $accountId): void
     {
         CalendarAccount::query()->findOrFail($accountId);
 
         SyncCalendarAccountJob::dispatch($accountId);
-        $queueWorkerManager->ensureRunning();
 
         $this->success('Synchronisation planifiee dans la file de jobs.');
     }

@@ -1,7 +1,6 @@
 <?php
 
 use App\Support\QueueDashboard;
-use App\Support\QueueWorkerManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Attributes\Computed;
@@ -13,21 +12,13 @@ new #[Title('Queue')] class extends Component
 {
     use Toast;
 
-    public function processQueue(QueueWorkerManager $queueWorkerManager): void
-    {
-        $queueWorkerManager->ensureRunning();
-
-        $this->success('Worker de queue lance.');
-    }
-
-    public function retryFailed(string $uuid, QueueWorkerManager $queueWorkerManager): void
+    public function retryFailed(string $uuid): void
     {
         Artisan::call('queue:retry', ['id' => [$uuid]]);
-        $queueWorkerManager->ensureRunning();
 
         unset($this->failedJobs, $this->pendingJobs, $this->summary);
 
-        $this->success('Job relance.');
+        $this->success('Job relance dans la queue.');
     }
 
     public function forgetFailed(string $uuid): void
@@ -66,11 +57,7 @@ new #[Title('Queue')] class extends Component
 ?>
 
 <div>
-    <x-header title="Queue de jobs" subtitle="Suivi des synchronisations et reecritures distantes executees en arriere-plan." separator>
-        <x-slot:actions>
-            <x-button label="Traiter la file" icon="tabler.player-play" class="btn-primary" wire:click="processQueue" spinner="processQueue" />
-        </x-slot:actions>
-    </x-header>
+    <x-header title="Queue de jobs" subtitle="Suivi des synchronisations et reecritures distantes executees en arriere-plan par NativePHP." separator />
 
     <div class="mb-6 grid gap-4 md:grid-cols-4">
         <x-card title="En attente">

@@ -4,9 +4,8 @@ namespace App\Providers;
 
 use App\Jobs\SyncCalendarAccountJob;
 use App\Models\CalendarAccount;
-use App\Support\QueueWorkerManager;
 use Native\Desktop\Contracts\ProvidesPhpIni;
-use Native\Desktop\Facades\MenuBar;
+use Native\Desktop\Facades\Menu;
 use Native\Desktop\Facades\Window;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
@@ -17,10 +16,10 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function boot(): void
     {
+        Menu::create();
+
         Window::open()
             ->maximized();
-
-        MenuBar::hide();
 
         if (app()->runningUnitTests()) {
             return;
@@ -30,8 +29,6 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->where('is_active', true)
             ->pluck('id')
             ->each(fn (int $accountId) => SyncCalendarAccountJob::dispatch($accountId));
-
-        //app(QueueWorkerManager::class)->ensureRunning();
     }
 
     /**

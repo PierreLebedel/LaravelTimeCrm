@@ -37,7 +37,7 @@ Permettre de gerer :
 - Si un client n'a aucun projet, le champ `Projet` reste visible mais apparait desactive.
 - La saisie date / heure se fait avec une precision de `15 minutes`.
 - Lorsqu'un evenement est edite ou passe en revue, son titre distant doit etre reecrit.
-- Les synchronisations DAV et les pushes distants utilisent le systeme de jobs Laravel.
+- Les synchronisations DAV et les pushes distants utilisent le systeme de jobs Laravel sur la queue `default`.
 - L'application doit permettre de visualiser la file de jobs et les traitements en cours.
 - La fenetre de synchronisation CalDAV est limitee a `3 mois passes` et `6 mois futurs`.
 - Chaque client porte une couleur metier utilisee pour afficher ses evenements dans l'application, notamment dans le calendrier et l'analyse.
@@ -70,4 +70,4 @@ Permettre de gerer :
 - Le temps passe est calcule a partir de la duree reelle des evenements calendaires.
 - Les evenements calendaires sont importes puis synchronises localement, avec conservation d'un identifiant externe stable.
 - L'association client/projet vit dans la base locale meme si le titre de l'evenement sert aussi de convention visible dans l'agenda.
-- Le worker de queue est lance a la demande par l'application NativePHP pour traiter les jobs de fond.
+- NativePHP gere l'execution du worker de la queue `default`.

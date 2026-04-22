@@ -9,7 +9,6 @@ use App\Models\Client;
 use App\Models\Project;
 use App\Support\CalendarEventEditor;
 use App\Support\CalendarEventTitleFormatter;
-use App\Support\QueueWorkerManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -125,7 +124,7 @@ new #[Title('Calendrier')] class extends Component
         $this->drawer = true;
     }
 
-    public function saveEvent(CalendarEventEditor $editor, QueueWorkerManager $queueWorkerManager): void
+    public function saveEvent(CalendarEventEditor $editor): void
     {
         $validator = Validator::make([
             'calendar_id' => $this->calendar_id,
@@ -179,7 +178,6 @@ new #[Title('Calendrier')] class extends Component
             : $editor->create($payload);
 
         PushCalendarEventToRemoteJob::dispatch($updatedEvent->id)->afterCommit();
-        $queueWorkerManager->ensureRunning();
 
         unset($this->fullCalendarEvents, $this->weeklyTotals, $this->currentEvent);
         $this->dispatchFullCalendarRefresh();
@@ -213,14 +211,12 @@ new #[Title('Calendrier')] class extends Component
         string $startDateTime,
         string $endDateTime,
         CalendarEventEditor $editor,
-        QueueWorkerManager $queueWorkerManager,
     ): void {
         $event = CalendarEvent::query()->findOrFail($eventId);
 
         $editor->reschedule($event, $startDateTime, $endDateTime);
 
         PushCalendarEventToRemoteJob::dispatch($event->id)->afterCommit();
-        $queueWorkerManager->ensureRunning();
 
         unset($this->fullCalendarEvents, $this->weeklyTotals);
         $this->dispatchFullCalendarRefresh();

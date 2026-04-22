@@ -6,7 +6,6 @@ use App\Models\Client;
 use App\Models\Project;
 use App\Support\CalendarEventEditor;
 use App\Support\CalendarEventTitleFormatter;
-use App\Support\QueueWorkerManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
@@ -88,7 +87,7 @@ new #[Title('Revue')] class extends Component
         $this->syncProjectSelection();
     }
 
-    public function save(CalendarEventEditor $editor, QueueWorkerManager $queueWorkerManager): void
+    public function save(CalendarEventEditor $editor): void
     {
         $validator = Validator::make([
             'event_id' => $this->event_id,
@@ -137,7 +136,6 @@ new #[Title('Revue')] class extends Component
         ]);
 
         PushCalendarEventToRemoteJob::dispatch($updatedEvent->id)->afterCommit();
-        $queueWorkerManager->ensureRunning();
 
         $this->success('Evenement reclasse et synchronisation distante planifiee.');
         $this->loadNextEvent();

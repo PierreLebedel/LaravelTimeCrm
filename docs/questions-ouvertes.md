@@ -17,7 +17,7 @@
 ## Implementation
 
 - Faut-il documenter un mini design system MaryUI interne avec conventions de boutons, tableaux, drawers et icones Tabler ?
-- Souhaites-tu qu'un worker de queue reste vivant plus longtemps en arriere-plan, ou prefieres-tu conserver un worker court lance a la demande ?
+- Souhaites-tu ajuster plus finement les parametres du worker `default` pilote par NativePHP ?
 
 ## Decisions en attente
 

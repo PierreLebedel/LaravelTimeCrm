@@ -197,7 +197,7 @@ Statuts en place :
 ### Queue applicative
 
 - les jobs sont stockes dans la base locale ;
-- l'application lance un worker court a la demande ;
+- NativePHP execute le worker associe a la queue `default` ;
 - un tableau de bord affiche :
   - les jobs en attente ;
   - les jobs reserves ;
@@ -214,6 +214,7 @@ Statuts en place :
 - parsing de titre dans `CalendarEventTitleParser` ;
 - formatage de titre dans `CalendarEventTitleFormatter` ;
 - jobs dans `app/Jobs`.
+- aucun lanceur applicatif manuel du worker n'est conserve dans le code metier.
 
 ### UI Livewire
 

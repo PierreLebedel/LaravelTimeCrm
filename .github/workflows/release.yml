@@ -39,6 +39,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Set version
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+        shell: bash
+
       - name: Publish NativePHP
         run: php artisan native:publish win x64
         env:
@@ -46,4 +50,4 @@ jobs:
           NATIVEPHP_UPDATER_PROVIDER: github
           GITHUB_OWNER: ${{ github.repository_owner }}
           GITHUB_REPO: ${{ github.event.repository.name }}
-          NATIVEPHP_APP_VERSION: ${{ github.ref_name }}
+          NATIVEPHP_APP_VERSION: ${{ env.APP_VERSION }}

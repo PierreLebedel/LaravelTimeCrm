@@ -111,7 +111,7 @@ class CalendarAccountSynchronizer
             'starts_at' => $remoteEvent->startsAt,
             'ends_at' => $remoteEvent->endsAt,
             'timezone' => $remoteEvent->timezone ?? $calendar->timezone ?? config('app.timezone'),
-            'title' => $remoteEvent->title,
+            'title' => $assignment['title'],
             'description' => $remoteEvent->description,
             'feature_description' => $assignment['feature_description'],
             'sync_status' => $assignment['sync_status'],
@@ -129,6 +129,7 @@ class CalendarAccountSynchronizer
      * @return array{
      *     client_id: ?int,
      *     project_id: ?int,
+     *     title: string,
      *     feature_description: string,
      *     sync_status: CalendarEventSyncStatus,
      *     format_status: CalendarEventFormatStatus
@@ -139,16 +140,23 @@ class CalendarAccountSynchronizer
         $parsedTitle = CalendarEventTitleParser::parse($title);
 
         if ($defaultClient !== null) {
-            $project = $parsedTitle === null || $parsedTitle['project_name'] === null
-                ? null
-                : Project::query()
-                    ->whereBelongsTo($defaultClient)
-                    ->where('name', $parsedTitle['project_name'])
-                    ->first();
+            $project = $this->resolveProjectForClient($defaultClient, $parsedTitle);
+
+            if ($project === null) {
+                return [
+                    'client_id' => $defaultClient->id,
+                    'project_id' => null,
+                    'title' => $title,
+                    'feature_description' => $parsedTitle['feature_description'] ?? $title,
+                    'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
+                    'format_status' => CalendarEventFormatStatus::NeedsReview,
+                ];
+            }
 
             return [
                 'client_id' => $defaultClient->id,
-                'project_id' => $project?->id,
+                'project_id' => $project->id,
+                'title' => $parsedTitle['feature_description'] ?? $title,
                 'feature_description' => $parsedTitle['feature_description'] ?? $title,
                 'sync_status' => CalendarEventSyncStatus::Synced,
                 'format_status' => CalendarEventFormatStatus::Formatted,
@@ -159,6 +167,7 @@ class CalendarAccountSynchronizer
             return [
                 'client_id' => null,
                 'project_id' => null,
+                'title' => $title,
                 'feature_description' => $title,
                 'sync_status' => CalendarEventSyncStatus::Orphaned,
                 'format_status' => CalendarEventFormatStatus::NeedsReview,
@@ -169,17 +178,24 @@ class CalendarAccountSynchronizer
             ->where('name', $parsedTitle['client_name'])
             ->first();
 
-        $project = $client === null || $parsedTitle['project_name'] === null
-            ? null
-            : Project::query()
-                ->whereBelongsTo($client)
-                ->where('name', $parsedTitle['project_name'])
-                ->first();
-
-        if ($client === null || ($parsedTitle['project_name'] !== null && $project === null)) {
+        if ($client === null) {
             return [
                 'client_id' => null,
                 'project_id' => null,
+                'title' => $title,
+                'feature_description' => $parsedTitle['feature_description'],
+                'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
+                'format_status' => CalendarEventFormatStatus::NeedsReview,
+            ];
+        }
+
+        $project = $this->resolveProjectForClient($client, $parsedTitle);
+
+        if ($project === null) {
+            return [
+                'client_id' => null,
+                'project_id' => null,
+                'title' => $title,
                 'feature_description' => $parsedTitle['feature_description'],
                 'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
                 'format_status' => CalendarEventFormatStatus::NeedsReview,
@@ -188,10 +204,33 @@ class CalendarAccountSynchronizer
 
         return [
             'client_id' => $client->id,
-            'project_id' => $project?->id,
+            'project_id' => $project->id,
+            'title' => $parsedTitle['feature_description'],
             'feature_description' => $parsedTitle['feature_description'],
             'sync_status' => CalendarEventSyncStatus::Synced,
             'format_status' => CalendarEventFormatStatus::Formatted,
         ];
+    }
+
+    /**
+     * @param  array{client_name: string, project_name: ?string, feature_description: string}|null  $parsedTitle
+     */
+    protected function resolveProjectForClient(Client $client, ?array $parsedTitle): ?Project
+    {
+        if ($parsedTitle === null) {
+            return null;
+        }
+
+        if ($parsedTitle['project_name'] !== null) {
+            return Project::query()
+                ->whereBelongsTo($client)
+                ->where('name', $parsedTitle['project_name'])
+                ->first();
+        }
+
+        return Project::query()
+            ->whereBelongsTo($client)
+            ->where('name', $client->name)
+            ->first();
     }
 }

@@ -96,10 +96,10 @@ new #[Title('Analyse')] class extends Component
 ?>
 
 <div>
-    <x-header title="Analyse temps et coûts" subtitle="Synthèse sur période avec regroupement par client, projet ou client/projet." separator />
+    <x-header title="Analyse temps et coûts" subtitle="Synthèse sur période avec regroupement par client et par projet." separator />
 
-    <div class="mb-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <x-card title="Filtres">
+    <div class="mb-6 grid gap-4">
+        <x-card>
             <div class="grid gap-4 md:grid-cols-3">
                 <x-input label="Du" type="date" wire:model.live="from" />
                 <x-input label="Au" type="date" wire:model.live="to" />
@@ -115,17 +115,27 @@ new #[Title('Analyse')] class extends Component
             </div>
         </x-card>
 
-        <div class="grid gap-4 md:grid-cols-3">
-            <x-card title="Événements">
-                <p class="text-3xl font-bold">{{ $this->totals['events'] }}</p>
-            </x-card>
-            <x-card title="Temps">
-                <p class="text-3xl font-bold">{{ DurationFormatter::formatMinutes($this->totals['minutes']) }}</p>
-            </x-card>
-            <x-card title="Coût">
-                <p class="text-3xl font-bold text-primary">{{ number_format($this->totals['cost'], 2, ',', ' ') }} €</p>
-            </x-card>
-        </div>
+    </div>
+
+    <div class="grid gap-6 md:grid-cols-3 mb-6">
+
+        <x-stat
+            title="Evénements"
+            value="{{ $this->totals['events'] }}"
+            icon="tabler.calendar"
+            color="text-primary" />
+
+        <x-stat
+            title="Temps"
+            value="{{ DurationFormatter::formatMinutes($this->totals['minutes']) }}"
+            icon="tabler.clock"
+            color="text-primary" />
+
+        <x-stat
+            title="Facturation"
+            value="{{ number_format($this->totals['cost'], 2, ',', ' ') }} €"
+            icon="tabler.receipt-euro"
+            color="text-primary" />
     </div>
 
     <x-card shadow>

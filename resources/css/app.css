@@ -50,8 +50,8 @@ body {
 .fc-timegrid-slot,
 .fc-timegrid-slot-label,
 .fc-timegrid-slot-lane {
-  height: 20px;
-  line-height: 20px;
+  height: 26px;
+  line-height: 26px;
   font-size:0.7em;
 }
 .fc-event{

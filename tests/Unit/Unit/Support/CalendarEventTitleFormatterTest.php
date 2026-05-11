@@ -18,3 +18,11 @@ test('it formats a title without a project', function () {
     expect(CalendarEventTitleFormatter::format($client, null, 'weekly review'))
         ->toBe('ACME : weekly review');
 });
+
+test('it omits the project when it has the same name as the client', function () {
+    $client = Client::factory()->make(['name' => 'ACME']);
+    $project = Project::factory()->make(['name' => 'ACME']);
+
+    expect(CalendarEventTitleFormatter::format($client, $project, 'weekly review'))
+        ->toBe('ACME : weekly review');
+});

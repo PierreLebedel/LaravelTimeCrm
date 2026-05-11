@@ -92,9 +92,9 @@ Conventions :
 - dans ce cas, le libelle du projet inclut aussi le client pour rester lisible ;
 - choisir un projet doit renseigner automatiquement le client correspondant ;
 - si le client change et ne correspond plus au projet choisi, le projet est reinitialise ;
-- si le client choisi possede un seul projet, celui-ci est preselectionne ;
-- si le client choisi possede plusieurs projets, le select `Projet` devient requis ;
-- si le client choisi ne possede aucun projet, le select `Projet` reste visible mais desactive avec le libelle `Aucun projet disponible` ;
+- si le client choisi possede un projet dont le nom est exactement celui du client, celui-ci est preselectionne ;
+- sinon, si le client choisi possede un seul projet, celui-ci est preselectionne ;
+- le select `Projet` devient requis sur tous les formulaires d'evenement ;
 - le select dependant `Projet` doit etre desactive pendant son rechargement Livewire ;
 - les dates / heures utilisent un pas de `15 minutes` ;
 - les erreurs doivent rester proches du champ via le comportement standard MaryUI / Livewire.

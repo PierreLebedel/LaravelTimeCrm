@@ -2,7 +2,9 @@
 
 use App\Enums\BillingMode;
 use App\Models\Client;
+use App\Models\Project;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -22,7 +24,7 @@ new #[Title('Clients')] class extends Component
 
     public string $color = '#2563eb';
 
-    public string $billing_mode = 'hourly';
+    public string $billing_mode = 'daily';
 
     public ?string $hourly_rate = null;
 
@@ -43,9 +45,22 @@ new #[Title('Clients')] class extends Component
             'is_active' => ['required', 'bool'],
         ]);
 
-        $client = Client::query()->find($this->editingClientId) ?? new Client();
-        $client->fill($validated);
-        $client->save();
+        DB::transaction(function () use ($validated): void {
+            $client = Client::query()->find($this->editingClientId) ?? new Client();
+            $isCreating = ! $client->exists;
+
+            $client->fill($validated);
+            $client->save();
+
+            if ($isCreating) {
+                Project::query()->create([
+                    'client_id' => $client->id,
+                    'name' => $client->name,
+                    'description' => null,
+                    'is_active' => true,
+                ]);
+            }
+        });
 
         $this->resetForm();
         $this->success('Client enregistré.');
@@ -85,7 +100,7 @@ new #[Title('Clients')] class extends Component
     {
         $this->reset('editingClientId', 'name', 'hourly_rate', 'daily_rate');
         $this->color = '#2563eb';
-        $this->billing_mode = BillingMode::Hourly->value;
+        $this->billing_mode = BillingMode::Daily->value;
         $this->is_active = true;
         $this->drawer = false;
         $this->resetErrorBag();
@@ -132,7 +147,7 @@ new #[Title('Clients')] class extends Component
 ?>
 
 <div>
-    <x-header title="Clients" subtitle="Référentiel de facturation pour piloter temps et coûts." separator>
+    <x-header title="Clients" subtitle="Gérez l'affichage et la facturation de vos clients" separator>
         <x-slot:actions>
             <x-button label="Nouveau client" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
@@ -155,21 +170,21 @@ new #[Title('Clients')] class extends Component
 
     <x-drawer wire:model="drawer" title="{{ $editingClientId ? 'Modifier le client' : 'Nouveau client' }}" right separator with-close-button class="w-full lg:w-1/3">
         <div class="space-y-4">
-            <x-input label="Nom" wire:model.blur="name" required />
+            <x-input label="Nom" wire:model.live.blur="name" required />
             <x-input label="Couleur" wire:model.live="color" type="color" required />
             <x-select
                 label="Mode de facturation"
                 wire:model.live="billing_mode"
                 :options="collect([
-                    ['id' => 'hourly', 'name' => 'Taux horaire'],
                     ['id' => 'daily', 'name' => 'Taux journalier'],
+                    ['id' => 'hourly', 'name' => 'Taux horaire'],
                 ])"
             />
 
             @if ($billing_mode === 'hourly')
-                <x-input label="Tarif horaire" wire:model.blur="hourly_rate" type="number" step="0.01" prefix="€" required />
+                <x-input label="Tarif horaire" wire:model.live.blur="hourly_rate" type="number" step="0.01" prefix="€" required />
             @else
-                <x-input label="Tarif journalier" wire:model.blur="daily_rate" type="number" step="0.01" prefix="€" required />
+                <x-input label="Tarif journalier" wire:model.live.blur="daily_rate" type="number" step="0.01" prefix="€" required />
             @endif
 
             <x-toggle label="Client actif" wire:model="is_active" />

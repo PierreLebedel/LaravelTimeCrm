@@ -20,9 +20,10 @@ Permettre de gerer :
 
 - Un projet appartient a un client.
 - Un evenement synchronise doit etre associe a un client une fois classe.
-- L'association a un projet est facultative.
+- L'association a un projet est obligatoire.
 - Le systeme doit pouvoir reformater un evenement pour respecter une convention de titre et de description.
-- Le titre cible d'un evenement est : `Client/Projet : Title`, ou `Client : Title` si aucun projet n'est lie.
+- Le titre distant cible d'un evenement est : `Client/Projet : Title`.
+- Si le projet porte exactement le meme nom que le client, le titre distant est simplifie en `Client : Title`.
 - Lorsqu'une connexion DAV revele des evenements non conformes, l'utilisateur doit les traiter un par un pour les associer correctement.
 - Un client ou un projet ne peut pas etre supprime tant qu'au moins un evenement d'agenda lui est rattache.
 - L'application doit offrir une vue hebdomadaire du calendrier basee sur FullCalendar.
@@ -32,9 +33,10 @@ Permettre de gerer :
 - La creation autorise aussi le choix de l'agenda cible.
 - Dans les formulaires d'evenement, les projets restent visibles meme avant selection du client.
 - Le choix d'un projet peut definir automatiquement le client correspondant.
-- Si un client a des projets, le champ `Projet` devient requis dans les formulaires d'evenement.
-- Si un client n'a qu'un seul projet, ce projet est preselectionne automatiquement.
-- Si un client n'a aucun projet, le champ `Projet` reste visible mais apparait desactive.
+- A la creation d'un client, l'application cree immediatement un projet homonyme.
+- Le champ `Projet` est requis dans les formulaires d'evenement.
+- Si un client possede un projet dont le nom est exactement celui du client, ce projet est preselectionne automatiquement.
+- Sinon, si un client n'a qu'un seul projet, ce projet est preselectionne automatiquement.
 - La saisie date / heure se fait avec une precision de `15 minutes`.
 - Lorsqu'un evenement est edite ou passe en revue, son titre distant doit etre reecrit.
 - Les synchronisations DAV et les pushes distants utilisent le systeme de jobs Laravel sur la queue `default`.

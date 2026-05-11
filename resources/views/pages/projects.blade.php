@@ -137,7 +137,7 @@ new #[Title('Projets')] class extends Component
 ?>
 
 <div>
-    <x-header title="Projets" subtitle="Un projet appartient à un client, mais reste facultatif sur un événement." separator>
+    <x-header title="Projets" subtitle="Gérez tous vos projets et ceux de vos clients" separator>
         <x-slot:actions>
             <x-button label="Nouveau projet" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
@@ -166,8 +166,8 @@ new #[Title('Projets')] class extends Component
                 :options="$this->clientOptions"
                 placeholder="{{ config('crm.select_placeholder') }}"
             />
-            <x-input label="Nom" wire:model.blur="name" required />
-            <x-input label="Description" wire:model.blur="description" />
+            <x-input label="Nom" wire:model.live.blur="name" required />
+            <x-input label="Description" wire:model.live.blur="description" />
             <x-toggle label="Projet actif" wire:model="is_active" />
         </div>
 

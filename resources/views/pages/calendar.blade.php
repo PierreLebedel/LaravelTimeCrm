@@ -141,7 +141,7 @@ new #[Title('Calendrier')] class extends Component
             'calendar_id' => ['required_without:editingEventId', 'exists:calendars,id'],
             'editingEventId' => ['nullable', 'exists:calendar_events,id'],
             'client_id' => ['required', 'exists:clients,id'],
-            'project_id' => ['nullable'],
+            'project_id' => ['required', 'exists:projects,id'],
             'feature_description' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'is_billable' => ['required', 'bool'],
@@ -166,7 +166,7 @@ new #[Title('Calendrier')] class extends Component
         $payload = [
             'calendar_id' => $validated['calendar_id'] !== '' ? (int) $validated['calendar_id'] : null,
             'client_id' => (int) $validated['client_id'],
-            'project_id' => $validated['project_id'] !== '' ? (int) $validated['project_id'] : null,
+            'project_id' => (int) $validated['project_id'],
             'feature_description' => $validated['feature_description'],
             'description' => $validated['description'] ?: null,
             'is_billable' => $validated['is_billable'],
@@ -364,7 +364,7 @@ new #[Title('Calendrier')] class extends Component
         $client = $this->clientOptions->firstWhere('id', (int) $this->client_id);
 
         if ($client === null) {
-            return 'Selectionne un client pour generer le titre.';
+            return "Aperçu de l'évenement";
         }
 
         $project = $this->project_id !== ''
@@ -431,6 +431,18 @@ new #[Title('Calendrier')] class extends Component
             ->orderBy('name')
             ->pluck('id');
 
+        $homonymousProjectId = Project::query()
+            ->join('clients', 'clients.id', '=', 'projects.client_id')
+            ->where('projects.client_id', (int) $this->client_id)
+            ->whereColumn('projects.name', 'clients.name')
+            ->value('projects.id');
+
+        if ($homonymousProjectId !== null) {
+            $this->project_id = (string) $homonymousProjectId;
+
+            return;
+        }
+
         if ($projectIds->count() === 1) {
             $this->project_id = (string) $projectIds->first();
 
@@ -456,25 +468,29 @@ new #[Title('Calendrier')] class extends Component
 ?>
 
 <div class="space-y-6">
-    <x-header
-        title="Calendrier"
-        subtitle="Vue hebdomadaire interactive avec drag and drop, resize et creation par selection de plage."
-        separator
-    />
 
-    <div class="grid gap-4 md:grid-cols-3">
-        <x-card title="Periode" subtitle="{{ $this->weekStart()->translatedFormat('d M Y') }} -> {{ $this->weekEnd()->translatedFormat('d M Y') }}">
-            <p class="text-sm text-base-content/70">Glisse un evenement pour le deplacer ou tire sa bordure pour ajuster la duree.</p>
-        </x-card>
+    <x-header title="{{ $this->weekStart()->translatedFormat('d M Y') }} -> {{ $this->weekEnd()->translatedFormat('d M Y') }}" separator>
+    </x-header>
 
-        <x-card title="Evenements">
-            <p class="text-4xl font-bold">{{ $this->weeklyTotals['events'] }}</p>
-        </x-card>
+    <div class="grid gap-6 md:grid-cols-3">
 
-        <x-card title="Temps / Revue">
-            <p class="text-2xl font-bold">{{ DurationFormatter::formatMinutes($this->weeklyTotals['minutes']) }}</p>
-            <p class="mt-2 text-sm text-warning">{{ $this->weeklyTotals['reviews'] }} evenement(s) a revoir</p>
-        </x-card>
+        <x-stat
+            title="Evénements"
+            value="{{ $this->weeklyTotals['events'] }}"
+            icon="tabler.calendar"
+            color="text-primary" />
+
+        <x-stat
+            title="Temps"
+            value="{{ DurationFormatter::formatMinutes($this->weeklyTotals['minutes']) }}"
+            icon="tabler.clock"
+            color="text-primary" />
+
+        <x-stat
+            title="Revue"
+            value="{{ $this->weeklyTotals['reviews'] }}"
+            icon="tabler.folder-exclamation"
+            color="text-primary" />
     </div>
 
     <x-card class="overflow-hidden p-0">
@@ -605,7 +621,7 @@ new #[Title('Calendrier')] class extends Component
             editable: true,
             selectable: true,
             selectMirror: true,
-            height: '528px',
+            height: '628px',
             slotDuration: '00:30:00',
             slotMinTime: '00:00:00',
             slotMaxTime: '24:00:00',

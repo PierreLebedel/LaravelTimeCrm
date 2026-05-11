@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CalendarEventFormatStatus;
 use App\Jobs\PushCalendarEventToRemoteJob;
 use App\Models\CalendarEvent;
 use App\Models\Client;
@@ -101,7 +102,7 @@ new #[Title('Revue')] class extends Component
         ], [
             'event_id' => ['required', 'exists:calendar_events,id'],
             'client_id' => ['required', 'exists:clients,id'],
-            'project_id' => ['nullable'],
+            'project_id' => ['required', 'exists:projects,id'],
             'feature_description' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'is_billable' => ['required', 'bool'],
@@ -127,7 +128,7 @@ new #[Title('Revue')] class extends Component
 
         $updatedEvent = $editor->update($event, [
             'client_id' => (int) $validated['client_id'],
-            'project_id' => $validated['project_id'] !== '' ? (int) $validated['project_id'] : null,
+            'project_id' => (int) $validated['project_id'],
             'feature_description' => $validated['feature_description'],
             'description' => $validated['description'] ?: null,
             'is_billable' => $validated['is_billable'],
@@ -137,8 +138,9 @@ new #[Title('Revue')] class extends Component
 
         PushCalendarEventToRemoteJob::dispatch($updatedEvent->id)->afterCommit();
 
-        $this->success('Evenement reclasse et synchronisation distante planifiee.');
+        $this->success('Evénement enregistré et synchronisation planifiée.');
         $this->loadNextEvent();
+        $this->dispatch('review-queue-updated');
     }
 
     public function previewTitle(): string
@@ -146,7 +148,7 @@ new #[Title('Revue')] class extends Component
         $client = $this->clientOptions->firstWhere('id', (int) $this->client_id);
 
         if ($client === null) {
-            return 'Selectionne un client pour generer le titre.';
+            return "Aperçu de l'événement";
         }
 
         $project = $this->project_id !== ''
@@ -236,6 +238,18 @@ new #[Title('Revue')] class extends Component
             ->orderBy('name')
             ->pluck('id');
 
+        $homonymousProjectId = Project::query()
+            ->join('clients', 'clients.id', '=', 'projects.client_id')
+            ->where('projects.client_id', (int) $this->client_id)
+            ->whereColumn('projects.name', 'clients.name')
+            ->value('projects.id');
+
+        if ($homonymousProjectId !== null) {
+            $this->project_id = (string) $homonymousProjectId;
+
+            return;
+        }
+
         if ($projectIds->count() === 1) {
             $this->project_id = (string) $projectIds->first();
 
@@ -257,48 +271,51 @@ new #[Title('Revue')] class extends Component
             ->where('client_id', (int) $this->client_id)
             ->count();
     }
+
+    public function saveAsIgnored()
+    {
+        $this->currentEvent->update([
+            "format_status" => CalendarEventFormatStatus::Ignored,
+        ]);
+
+        $this->success('Evénement ignoré.');
+        $this->loadNextEvent();
+        $this->dispatch('review-queue-updated');
+    }
 };
 ?>
 
 <div>
-    <x-header title="File de revue" subtitle="Traitement unitaire des evenements mal formates detectes pendant la synchronisation." separator>
+    <x-header title="Revue des événements" subtitle="Associez les évenements de vos calendrier à vos clients et leurs projets" separator>
         <x-slot:actions>
-            <x-badge :value="$this->queueCount.' restant(s)'" class="badge-warning" />
+            <x-badge :value="$this->queueCount.' restant(s)'" @class([
+                "badge-warning" => $this->queueCount>0,
+                "badge-success" => $this->queueCount<=0
+            ]) />
         </x-slot:actions>
     </x-header>
 
-    <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <x-card title="Evenement courant" subtitle="Client obligatoire, projet conditionnel selon le client.">
+    <div class="flex items-start justify-stretch gap-6">
+        <x-card title="Evénement à traiter" class="grow">
             @if (! $this->currentEvent)
-                <div class="rounded-box border border-dashed border-base-300 p-6 text-base-content/60">
-                    Plus aucun evenement a traiter.
-                </div>
+                <x-alert title="Aucun événement à traiter" icon="tabler.circle-check" class="alert-success alert-soft" />
             @else
                 <div class="space-y-4">
-                    <div class="rounded-box bg-base-200 p-4">
-                        <div
-                            class="-m-4 mb-0 rounded-box bg-base-200 p-4"
-                            style="border-left: 4px solid {{ $this->currentEvent->client?->color ?? $this->currentEvent->calendar?->account?->defaultClient?->color ?? 'transparent' }};"
-                        >
-                        <p class="text-sm font-semibold">{{ $this->currentEvent->title }}</p>
-                        @if ($this->currentEvent->client?->color)
-                            <div class="mt-2 text-xs text-base-content/60">
-                                <x-client-indicator :name="$this->currentEvent->client->name" :color="$this->currentEvent->client->color" />
+                    <x-alert icon="tabler.calendar-exclamation" class="alert-warning">
+                        <div>
+                            <div class="font-bold">{{ $this->currentEvent->title }}</div>
+                            <div class="text-xs">
+                                @if ($this->currentEvent->client)
+                                Client : {{ $this->currentEvent->client->name }}<br />
+                                @endif
+
+                                {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}<br />
+
+                                {{ $this->currentEvent->description }}
                             </div>
-                        @endif
-                        @unless ($this->currentEvent->is_billable)
-                            <div class="mt-2">
-                                <x-badge value="non facturable" class="badge-ghost" />
-                            </div>
-                        @endunless
-                        <p class="mt-1 text-sm text-base-content/60">
-                            {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}
-                        </p>
-                        @if ($this->currentEvent->description)
-                            <p class="mt-3 text-sm leading-6 text-base-content/70">{{ $this->currentEvent->description }}</p>
-                        @endif
                         </div>
-                    </div>
+                    </x-alert>
+
 
                     <x-calendar-event-form-fields
                         :client-options="$this->clientOptions"
@@ -308,26 +325,21 @@ new #[Title('Revue')] class extends Component
                         :project-disabled="$this->projectSelectionIsDisabled()"
                         :project-placeholder="$this->projectPlaceholder()"
                         :title-preview="$this->previewTitle()"
-                        title-preview-label="Titre final"
                     />
 
                     <div class="flex gap-3">
                         <x-button label="Valider" class="btn-primary" wire:click="save" spinner="save" />
-                        <x-button label="Rafraichir" wire:click="loadNextEvent" />
+                        <x-button label="Ignorer" class="btn-error" wire:click="saveAsIgnored" wire:confirm="Etes-vous sûr ?" />
                     </div>
                 </div>
             @endif
         </x-card>
 
-        <x-card title="Regle metier" subtitle="La source distante gagne toujours.">
+        <x-card title="Règle de nommage" class="w-75">
             <p class="text-sm leading-6 text-base-content/70">
-                Quand un evenement est reclassifie ou edite, son titre distant est reecrit via un job Laravel afin de rester coherent avec le referentiel client/projet.
+                Lorsqu'un événement est associé à un client et un projet, il est renommé dans votre agenda en suivant ce format :
             </p>
-
-            <div class="mt-4 rounded-box bg-base-200 p-4">
-                <p class="text-xs uppercase tracking-[0.3em] text-base-content/40">Format cible</p>
-                <p class="mt-2 font-mono text-sm">{client}{?/projet} : titre</p>
-            </div>
+            <p class="mt-2 font-mono text-sm">{client}{?/projet} : titre</p>
         </x-card>
     </div>
 </div>

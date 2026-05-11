@@ -17,7 +17,7 @@ class CalendarEventEditor
     /**
      * @param  array{
      *     client_id: int,
-     *     project_id: ?int,
+     *     project_id: int,
      *     feature_description: string,
      *     description: ?string,
      *     is_billable: bool,
@@ -34,7 +34,7 @@ class CalendarEventEditor
      * @param  array{
      *     calendar_id: int,
      *     client_id: int,
-     *     project_id: ?int,
+     *     project_id: int,
      *     feature_description: string,
      *     description: ?string,
      *     is_billable: bool,
@@ -72,7 +72,7 @@ class CalendarEventEditor
     /**
      * @param  array{
      *     client_id: int,
-     *     project_id: ?int,
+     *     project_id: int,
      *     feature_description: string,
      *     description: ?string,
      *     is_billable: bool,
@@ -83,11 +83,9 @@ class CalendarEventEditor
     protected function fill(CalendarEvent $event, array $attributes): CalendarEvent
     {
         $client = Client::query()->findOrFail($attributes['client_id']);
-        $project = $attributes['project_id'] === null
-            ? null
-            : Project::query()->findOrFail($attributes['project_id']);
+        $project = Project::query()->findOrFail($attributes['project_id']);
 
-        if ($project !== null && $project->client_id !== $client->id) {
+        if ($project->client_id !== $client->id) {
             throw ValidationException::withMessages([
                 'project_id' => 'Le projet selectionne n appartient pas au client choisi.',
             ]);

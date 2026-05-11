@@ -57,50 +57,50 @@ new #[Title('Queue')] class extends Component
 ?>
 
 <div>
-    <x-header title="Queue de jobs" subtitle="Suivi des synchronisations et reecritures distantes executees en arriere-plan par NativePHP." separator />
+    <x-header title="Synchronisations" subtitle="Suivez le traitement des tâches de synchronisation avec vos agendas" separator />
 
-    <div class="mb-6 grid gap-4 md:grid-cols-4">
-        <x-card title="En attente">
-            <p class="text-3xl font-bold">{{ $this->summary['pending_count'] }}</p>
-        </x-card>
+    <div class="mb-6 grid gap-6 md:grid-cols-3">
+        <x-stat
+            title="En attente"
+            value="{{ $this->summary['pending_count'] }}"
+            icon="tabler.progress-help"
+            color="text-info" />
 
-        <x-card title="Reserves">
-            <p class="text-3xl font-bold">{{ $this->summary['reserved_count'] }}</p>
-        </x-card>
+        <x-stat
+            title="En cours"
+            value="{{ $this->summary['running_count'] }}"
+            icon="tabler.progress-bolt"
+            color="text-warning" />
 
-        <x-card title="En cours">
-            <p class="text-3xl font-bold">{{ $this->summary['running_count'] }}</p>
-        </x-card>
-
-        <x-card title="Echecs">
-            <p class="text-3xl font-bold">{{ $this->summary['failed_count'] }}</p>
-        </x-card>
+        <x-stat
+            title="Echecs"
+            value="{{ $this->summary['failed_count'] }}"
+            icon="tabler.progress-x"
+            color="text-error" />
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-3">
-        <x-card title="Jobs en cours">
+    <div class="grid gap-6 xl:grid-cols-3 items-start">
+        <x-card title="Tâches en cours">
             <div class="space-y-3">
                 @forelse ($this->runningJobs as $job)
                     <div class="rounded-box bg-base-200 p-4" wire:key="running-job-{{ $job['uuid'] }}">
                         <p class="text-sm font-semibold">{{ $job['name'] }}</p>
-                        <p class="mt-1 text-xs text-base-content/60">{{ $job['queue'] }} · demarre a {{ $job['started_at'] }}</p>
+                        <p class="mt-1 text-xs text-base-content/60">Démarre à {{ $job['started_at'] }}</p>
                     </div>
                 @empty
-                    <div class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/50">
-                        Aucun job actif.
-                    </div>
+                    <x-alert title="Aucune tâche active" icon="tabler.ban" class="" />
                 @endforelse
             </div>
         </x-card>
 
-        <x-card title="Jobs en attente">
+        <x-card title="Tâches en attente">
             <div class="space-y-3">
                 @forelse ($this->pendingJobs as $job)
                     <div class="rounded-box bg-base-200 p-4" wire:key="pending-job-{{ $job['id'] }}">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <p class="text-sm font-semibold">{{ $job['name'] }}</p>
-                                <p class="mt-1 text-xs text-base-content/60">{{ $job['queue'] }} · dispo a {{ $job['available_at'] }}</p>
+                                <p class="mt-1 text-xs text-base-content/60">Disponible à {{ $job['available_at'] }}</p>
                             </div>
 
                             @if ($job['reserved'])
@@ -109,19 +109,17 @@ new #[Title('Queue')] class extends Component
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/50">
-                        Aucun job en attente.
-                    </div>
+                    <x-alert title="Aucune tâche en attente" icon="tabler.ban" class="" />
                 @endforelse
             </div>
         </x-card>
 
-        <x-card title="Jobs echoues">
+        <x-card title="Tâches échouées">
             <div class="space-y-3">
                 @forelse ($this->failedJobs as $job)
-                    <div class="rounded-box bg-base-200 p-4" wire:key="failed-job-{{ $job['uuid'] }}">
+                    <div class="rounded-box bg-base-200 p-4 overflow-hidden" wire:key="failed-job-{{ $job['uuid'] }}">
                         <p class="text-sm font-semibold">{{ $job['name'] }}</p>
-                        <p class="mt-1 text-xs text-base-content/60">{{ $job['queue'] }} · {{ $job['failed_at'] }}</p>
+                        <p class="mt-1 text-xs text-base-content/60">Echouée à {{ $job['failed_at'] }}</p>
                         <p class="mt-2 text-xs text-error">{{ $job['exception'] }}</p>
 
                         <div class="mt-3 flex gap-2">
@@ -130,9 +128,7 @@ new #[Title('Queue')] class extends Component
                         </div>
                     </div>
                 @empty
-                    <div class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/50">
-                        Aucun job echoue.
-                    </div>
+                    <x-alert title="Aucune tâche échouée" icon="tabler.ban" class="" />
                 @endforelse
             </div>
         </x-card>

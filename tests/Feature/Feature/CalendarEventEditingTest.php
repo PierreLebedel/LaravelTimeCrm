@@ -139,6 +139,7 @@ test('it edits a review event and queues a remote push job', function () {
         ->set('starts_at', '2026-04-22T14:00')
         ->set('ends_at', '2026-04-22T15:15')
         ->call('save')
+        ->assertDispatched('review-queue-updated')
         ->assertHasNoErrors();
 
     $event->refresh();
@@ -219,6 +220,24 @@ test('it preselects the only project available for the selected client in the ma
     Livewire::test('pages::calendar')
         ->set('client_id', (string) $client->id)
         ->assertSet('project_id', (string) $project->id);
+});
+
+test('it preselects the homonymous project in the main calendar drawer when multiple projects exist', function () {
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+    $homonymousProject = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Support',
+    ]);
+
+    Livewire::test('pages::calendar')
+        ->set('client_id', (string) $client->id)
+        ->assertSet('project_id', (string) $homonymousProject->id);
 });
 
 test('it requires a project in the main calendar drawer when the selected client has projects', function () {
@@ -321,6 +340,61 @@ test('it preselects the only project available in review when the selected clien
     Livewire::test('pages::review')
         ->set('client_id', (string) $client->id)
         ->assertSet('project_id', (string) $project->id);
+});
+
+test('it preselects the homonymous project in review when multiple projects exist', function () {
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+    $homonymousProject = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+    Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Support',
+    ]);
+
+    Livewire::test('pages::review')
+        ->set('client_id', (string) $client->id)
+        ->assertSet('project_id', (string) $homonymousProject->id);
+});
+
+test('it formats a homonymous project as a client-only title when editing an event', function () {
+    Queue::fake();
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'client_id' => $client->id,
+        'project_id' => $project->id,
+        'feature_description' => 'Ancienne tache',
+        'title' => 'Ancien titre',
+        'sync_status' => CalendarEventSyncStatus::Synced,
+        'format_status' => CalendarEventFormatStatus::NeedsReview,
+    ]);
+
+    Livewire::test('pages::calendar')
+        ->call('editEvent', $event->id)
+        ->set('client_id', (string) $client->id)
+        ->set('project_id', (string) $project->id)
+        ->set('feature_description', 'Sprint planning')
+        ->set('starts_at', '2026-04-21T09:00')
+        ->set('ends_at', '2026-04-21T10:30')
+        ->call('saveEvent')
+        ->assertHasNoErrors();
+
+    $event->refresh();
+
+    expect($event)
+        ->project_id->toBe($project->id)
+        ->title->toBe('Acme : Sprint planning');
 });
 
 test('it requires a project in review when the selected client has projects', function () {

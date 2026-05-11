@@ -45,7 +45,7 @@ Champs :
 Regles :
 
 - un projet appartient a un client ;
-- le projet est facultatif pour un evenement ;
+- le projet est obligatoire pour un evenement ;
 - suppression interdite si des evenements synchronises existent.
 
 ### CalendarAccount
@@ -164,14 +164,14 @@ Statuts en place :
 
 1. Le titre distant est parse selon la convention `Client/Projet : Title` ou `Client : Title`.
 2. Si le client existe, l'evenement est relie au client.
-3. Si le projet est absent, l'evenement reste sans projet.
+3. Si le titre ne porte pas de projet et qu'un projet homonyme au client existe localement, ce projet est rattache automatiquement.
 4. Si le titre est invalide ou si la reference locale est introuvable, l'evenement passe en revue.
 5. Dans les formulaires d'edition, tant qu'aucun client n'est choisi, tous les projets restent visibles.
 6. Si un projet est choisi en premier, le client correspondant est selectionne automatiquement.
 7. Si le client change ensuite vers un autre client, le projet est reinitialise s'il n'est plus compatible.
-8. Si le client choisi n'a qu'un seul projet, celui-ci est selectionne automatiquement.
-9. Si le client choisi a plusieurs projets, le champ `Projet` devient obligatoire.
-10. Si le client choisi n'a aucun projet, le champ `Projet` reste visible mais desactive.
+8. Si le client choisi possede un projet dont le nom est exactement celui du client, celui-ci est selectionne automatiquement.
+9. Sinon, si le client choisi n'a qu'un seul projet, celui-ci est selectionne automatiquement.
+10. Le champ `Projet` reste obligatoire sur tous les formulaires d'evenement.
 
 ### Facturation des evenements
 
@@ -184,9 +184,10 @@ Statuts en place :
 1. Un `CalendarAccount` peut pointer vers un `default_client_id`.
 2. Si ce champ est renseigne, tous les evenements importes depuis ce compte sont relies localement a ce client.
 3. Cette affectation locale ne declenche pas de `PUT` distant a elle seule.
-4. Le projet reste optionnel :
+4. Le projet reste obligatoire :
    si le titre distant contient un projet valide pour ce client, il est rattache ;
-   sinon l'evenement reste sans projet.
+   sinon, si un projet homonyme au client existe localement, il est rattache ;
+   sinon l'evenement reste en revue.
 
 ### Conflits
 
@@ -225,8 +226,9 @@ Statuts en place :
 - selects client/projet avec option par defaut `Choisissez` ;
 - selects `Client` et `Projet` affiches sur la meme ligne dans les formulaires d'evenement ;
 - select `Projet` desactive pendant son rechargement Livewire ;
-- select `Projet` requis si le client courant possede au moins un projet ;
-- select `Projet` automatiquement renseigne si le client courant n'a qu'un seul projet ;
+- select `Projet` requis sur tous les formulaires d'evenement ;
+- select `Projet` automatiquement renseigne si le client courant possede un projet homonyme ;
+- sinon, select `Projet` automatiquement renseigne si le client courant n'a qu'un seul projet ;
 - le couple `client / projet` fonctionne dans les deux sens dans les formulaires d'evenement ;
 - FullCalendar constitue maintenant la vue calendrier principale.
 - champs creation / edition / revue mutualises via un composant Blade partage.

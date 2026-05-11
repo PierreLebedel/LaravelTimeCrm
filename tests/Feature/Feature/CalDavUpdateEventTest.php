@@ -4,6 +4,7 @@ use App\Models\Calendar;
 use App\Models\CalendarAccount;
 use App\Models\CalendarEvent;
 use App\Models\Client;
+use App\Models\Project;
 use App\Support\CalDav\CalDavClient;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -23,15 +24,20 @@ test('it preserves unknown vevent properties when pushing a remote update', func
     $client = Client::factory()->create([
         'name' => 'Acme',
     ]);
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
 
     $event = CalendarEvent::factory()->create([
         'calendar_id' => $calendar->id,
         'client_id' => $client->id,
-        'project_id' => null,
+        'project_id' => $project->id,
         'ical_uid' => 'event-123',
         'external_id' => '/calendars/pierre/main/event-123.ics',
         'external_etag' => '"etag-1"',
         'title' => 'Acme : Support',
+        'feature_description' => 'Support',
         'description' => 'Support client',
         'starts_at' => '2026-04-21 09:00:00',
         'ends_at' => '2026-04-21 10:15:00',
@@ -94,15 +100,20 @@ test('it creates a remote event when no existing ics resource is found', functio
     $client = Client::factory()->create([
         'name' => 'Acme',
     ]);
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
 
     $event = CalendarEvent::factory()->create([
         'calendar_id' => $calendar->id,
         'client_id' => $client->id,
-        'project_id' => null,
+        'project_id' => $project->id,
         'ical_uid' => 'new-event-123',
         'external_id' => '/calendars/pierre/main/new-event-123.ics',
         'external_etag' => null,
         'title' => 'Acme : Support',
+        'feature_description' => 'Support',
         'description' => 'Support client',
         'starts_at' => '2026-04-21 09:00:00',
         'ends_at' => '2026-04-21 10:15:00',

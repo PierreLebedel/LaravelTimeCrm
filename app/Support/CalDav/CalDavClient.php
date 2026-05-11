@@ -4,6 +4,7 @@ namespace App\Support\CalDav;
 
 use App\Models\CalendarAccount;
 use App\Models\CalendarEvent;
+use App\Support\CalendarEventTitleFormatter;
 use Carbon\CarbonImmutable;
 use DateTimeZone;
 use DOMDocument;
@@ -455,6 +456,8 @@ XML,
 
     protected function buildCalendarData(CalendarEvent $event): string
     {
+        $summary = $this->remoteSummary($event);
+
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
@@ -465,7 +468,7 @@ XML,
             'LAST-MODIFIED:'.now('UTC')->format('Ymd\THis\Z'),
             'DTSTART:'.$event->starts_at->clone()->utc()->format('Ymd\THis\Z'),
             'DTEND:'.$event->ends_at->clone()->utc()->format('Ymd\THis\Z'),
-            'SUMMARY:'.$this->escapeIcalText($event->title),
+            'SUMMARY:'.$this->escapeIcalText($summary),
         ];
 
         if (filled($event->description)) {
@@ -496,6 +499,7 @@ XML,
 
     protected function updateCalendarData(string $calendarData, CalendarEvent $event): string
     {
+        $summary = $this->remoteSummary($event);
         $lines = $this->unfoldLines($calendarData);
         $veventStartIndex = array_search('BEGIN:VEVENT', $lines, true);
         $veventEndIndex = array_search('END:VEVENT', $lines, true);
@@ -511,7 +515,7 @@ XML,
         $eventLines = $this->upsertProperty($eventLines, 'LAST-MODIFIED', now('UTC')->format('Ymd\THis\Z'));
         $eventLines = $this->upsertProperty($eventLines, 'DTSTART', $event->starts_at->clone()->utc()->format('Ymd\THis\Z'));
         $eventLines = $this->upsertProperty($eventLines, 'DTEND', $event->ends_at->clone()->utc()->format('Ymd\THis\Z'));
-        $eventLines = $this->upsertProperty($eventLines, 'SUMMARY', $this->escapeIcalText($event->title));
+        $eventLines = $this->upsertProperty($eventLines, 'SUMMARY', $this->escapeIcalText($summary));
         $eventLines = $this->upsertProperty(
             $eventLines,
             'DESCRIPTION',
@@ -526,6 +530,19 @@ XML,
         );
 
         return implode("\r\n", $lines)."\r\n";
+    }
+
+    protected function remoteSummary(CalendarEvent $event): string
+    {
+        if ($event->client !== null && filled($event->feature_description)) {
+            return CalendarEventTitleFormatter::format(
+                $event->client,
+                $event->project,
+                $event->feature_description,
+            );
+        }
+
+        return $event->title;
     }
 
     /**

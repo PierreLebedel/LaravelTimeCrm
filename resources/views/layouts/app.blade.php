@@ -23,22 +23,16 @@
 
     <x-main>
         <x-slot:sidebar drawer="main-drawer" collapsible class="bg-base-100 lg:bg-inherit" collapse-text="Masquer">
-            <x-app-brand class="px-5 pt-4" />
+            <x-app-brand class="px-5 pt-5 pb-2" />
 
             <x-menu activate-by-route>
                 <x-menu-item title="Calendrier" icon="tabler.calendar-week" link="{{ route('calendar') }}" exact />
                 <x-menu-item title="Clients" icon="tabler.building-skyscraper" link="{{ route('clients') }}" />
                 <x-menu-item title="Projets" icon="tabler.briefcase" link="{{ route('projects') }}" />
                 <x-menu-item title="Agendas" icon="tabler.link" link="{{ route('calendars') }}" />
-                <x-menu-item
-                    title="Revue"
-                    icon="tabler.alert-circle"
-                    link="{{ route('review') }}"
-                    :badge="($reviewCount ?? 0) > 0 ? (string) $reviewCount : null"
-                    badge-classes="badge-warning"
-                />
+                <livewire:review-menu-item />
                 <x-menu-item title="Analyse" icon="tabler.chart-bar" link="{{ route('reports') }}" />
-                <x-menu-item title="Queue" icon="tabler.list-details" link="{{ route('queue') }}" />
+                <x-menu-item title="Synchronisation" icon="tabler.list-details" link="{{ route('queue') }}" />
             </x-menu>
         </x-slot:sidebar>
 

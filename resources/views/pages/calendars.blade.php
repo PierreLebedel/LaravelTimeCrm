@@ -73,7 +73,13 @@ new #[Title('Agendas')] class extends Component
         $this->name = $account->name;
         $this->base_url = $account->base_url;
         $this->username = $account->username;
-        $this->password = $account->password;
+        
+        try{
+            $this->password = $account->password;
+        } catch(\Exception $e){
+            $this->password = '';
+        }
+
         $this->default_client_id = (string) ($account->default_client_id ?? '');
         $this->is_active = $account->is_active;
         $this->drawer = true;
@@ -178,9 +184,9 @@ new #[Title('Agendas')] class extends Component
 ?>
 
 <div>
-    <x-header title="Agendas DAV" subtitle="Connexion, decouverte des calendriers et synchronisation CalDAV locale." separator>
+    <x-header title="Agendas" subtitle="Connectez et synchronisez vos agendas DAV" separator>
         <x-slot:actions>
-            <x-button label="Nouveau compte" icon="tabler.plus" class="btn-primary" wire:click="create" />
+            <x-button label="Nouvel agenda" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
     </x-header>
 
@@ -210,49 +216,12 @@ new #[Title('Agendas')] class extends Component
         </x-table>
     </x-card>
 
-    <div class="mt-6 space-y-4">
-        @foreach ($accounts as $account)
-            <x-card title="{{ $account->name }}" subtitle="Selection agenda par agenda pour la synchro." shadow>
-                @if ($account->defaultClient)
-                    <div class="mb-4 flex items-center gap-3 rounded-box bg-base-200 p-3 text-sm">
-                        <span>Client par defaut :</span>
-                        <x-client-indicator :name="$account->defaultClient->name" :color="$account->defaultClient->color" />
-                    </div>
-                @endif
-
-                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    @forelse ($account->calendars as $calendar)
-                        <button
-                            type="button"
-                            class="rounded-box border p-4 text-left transition {{ $calendar->is_selected ? 'border-success/40 bg-success/5' : 'border-base-300 bg-base-200/60' }}"
-                            wire:key="calendar-toggle-{{ $calendar->id }}"
-                            wire:click="toggleCalendar({{ $calendar->id }})"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="text-sm font-semibold">{{ $calendar->name }}</p>
-                                    <p class="mt-1 text-xs text-base-content/60">{{ $calendar->timezone ?: 'Fuseau non renseigne' }}</p>
-                                </div>
-
-                                <x-badge :value="$calendar->is_selected ? 'actif' : 'ignore'" class="{{ $calendar->is_selected ? 'badge-success' : 'badge-ghost' }}" />
-                            </div>
-                        </button>
-                    @empty
-                        <div class="rounded-box border border-dashed border-base-300 p-4 text-sm text-base-content/50">
-                            Aucun agenda decouvert pour ce compte.
-                        </div>
-                    @endforelse
-                </div>
-            </x-card>
-        @endforeach
-    </div>
-
     <x-drawer wire:model="drawer" title="{{ $editingAccountId ? 'Modifier le compte DAV' : 'Nouveau compte DAV' }}" right separator with-close-button class="w-full lg:w-1/3">
         <div class="space-y-4">
-            <x-input label="Nom" wire:model.blur="name" required />
-            <x-input label="URL DAV" wire:model.blur="base_url" required />
-            <x-input label="Identifiant" wire:model.blur="username" required />
-            <x-password label="Mot de passe / token" wire:model.blur="password" clearable required />
+            <x-input label="Nom" wire:model.live.blur="name" required />
+            <x-input label="URL DAV" wire:model.live.blur="base_url" required />
+            <x-input label="Identifiant" wire:model.live.blur="username" required />
+            <x-password label="Mot de passe / token" wire:model.live.blur="password" clearable required />
             <x-select
                 label="Client par defaut"
                 wire:model.live="default_client_id"

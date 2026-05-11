@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\CalendarEvent;
 use App\Support\QueueDashboard;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
@@ -30,7 +29,6 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view): void {
             $view->with([
                 'queueSummary' => app(QueueDashboard::class)->summary(),
-                'reviewCount' => CalendarEvent::query()->needsReview()->count(),
             ]);
         });
 

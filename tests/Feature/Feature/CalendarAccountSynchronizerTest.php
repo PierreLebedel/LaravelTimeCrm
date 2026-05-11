@@ -138,6 +138,7 @@ XML, 207);
         ->not()->toBeNull()
         ->client_id->toBe($client->id)
         ->project_id->toBe($project->id)
+        ->title->toBe('Sprint planning')
         ->feature_description->toBe('Sprint planning')
         ->sync_status->toBe(CalendarEventSyncStatus::Synced)
         ->format_status->toBe(CalendarEventFormatStatus::Formatted);
@@ -147,6 +148,7 @@ XML, 207);
     expect($existingEvent)
         ->client_id->toBeNull()
         ->project_id->toBeNull()
+        ->title->toBe('Acme/Projet introuvable : Support')
         ->feature_description->toBe('Support')
         ->sync_status->toBe(CalendarEventSyncStatus::Conflict)
         ->format_status->toBe(CalendarEventFormatStatus::NeedsReview);
@@ -478,6 +480,7 @@ XML, 207);
     expect($formattedEvent)
         ->client_id->toBe($defaultClient->id)
         ->project_id->toBe($project->id)
+        ->title->toBe('Atelier')
         ->feature_description->toBe('Atelier')
         ->sync_status->toBe(CalendarEventSyncStatus::Synced)
         ->format_status->toBe(CalendarEventFormatStatus::Formatted);
@@ -485,6 +488,252 @@ XML, 207);
     expect($rawEvent)
         ->client_id->toBe($defaultClient->id)
         ->project_id->toBeNull()
+        ->title->toBe('Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Orphaned)
+        ->format_status->toBe(CalendarEventFormatStatus::NeedsReview);
+});
+
+test('it assigns a homonymous project when a client-only title is imported', function () {
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/homonymous-project.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-homonymous-project"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:homonymous-project-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Acme : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $event = CalendarEvent::query()->sole();
+
+    expect($event)
+        ->client_id->toBe($client->id)
+        ->project_id->toBe($project->id)
+        ->title->toBe('Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Synced)
+        ->format_status->toBe(CalendarEventFormatStatus::Formatted);
+});
+
+test('it keeps parsed titles in review when the client does not exist', function () {
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/unknown-client.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-unknown-client"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:unknown-client-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Client inconnu : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $event = CalendarEvent::query()->sole();
+
+    expect($event)
+        ->client_id->toBeNull()
+        ->project_id->toBeNull()
+        ->title->toBe('Client inconnu : Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Orphaned)
+        ->format_status->toBe(CalendarEventFormatStatus::NeedsReview);
+});
+
+test('it retries assignment for existing review events on a later resync', function () {
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/pending-event.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-pending-event"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:pending-event-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Acme/Plateforme : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    $synchronizer = app(CalendarAccountSynchronizer::class);
+
+    $synchronizer->sync($account);
+
+    $event = CalendarEvent::query()->sole();
+
+    expect($event)
+        ->client_id->toBeNull()
+        ->project_id->toBeNull()
+        ->title->toBe('Acme/Plateforme : Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Orphaned)
+        ->format_status->toBe(CalendarEventFormatStatus::NeedsReview);
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Plateforme',
+    ]);
+
+    $synchronizer->sync($account->fresh());
+
+    $event->refresh();
+
+    expect($event)
+        ->client_id->toBe($client->id)
+        ->project_id->toBe($project->id)
+        ->title->toBe('Support production')
         ->feature_description->toBe('Support production')
         ->sync_status->toBe(CalendarEventSyncStatus::Synced)
         ->format_status->toBe(CalendarEventFormatStatus::Formatted);

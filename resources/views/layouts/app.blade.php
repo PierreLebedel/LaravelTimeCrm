@@ -34,6 +34,10 @@
                 <x-menu-item title="Analyse" icon="tabler.chart-bar" link="{{ route('reports') }}" />
                 <x-menu-item title="Synchronisation" icon="tabler.list-details" link="{{ route('queue') }}" />
             </x-menu>
+
+            <div class="ps-5.5">
+                <x-theme-toggle darkTheme="dark" lightTheme="" />
+            </div>
         </x-slot:sidebar>
 
         <x-slot:content>

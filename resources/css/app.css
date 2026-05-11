@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source "../../vendor/robsontenorio/mary/src/View/Components/**/*.php"; 
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
@@ -20,9 +21,6 @@
 @plugin "../../node_modules/daisyui/index.js" {
     themes: light --default, dark --prefersdark;
 }
-
-/* maryUI */
-@source "../../vendor/robsontenorio/mary/src/View/Components/**/*.php";
 
 /* Theme toggle */
 @custom-variant dark (&:where(.dark, .dark *));

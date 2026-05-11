@@ -30,6 +30,7 @@ class QueueDashboard
     public function pendingJobs(): Collection
     {
         return DB::table('jobs')
+            ->whereNull('reserved_at')
             ->orderByRaw('reserved_at is not null desc')
             ->orderBy('available_at')
             ->limit(50)

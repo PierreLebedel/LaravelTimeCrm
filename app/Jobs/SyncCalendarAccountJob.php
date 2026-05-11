@@ -8,10 +8,12 @@ use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
+use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 
 #[DeleteWhenMissingModels]
 #[Tries(1)]
+#[Timeout(1800)]
 class SyncCalendarAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;

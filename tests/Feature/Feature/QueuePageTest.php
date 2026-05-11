@@ -37,7 +37,9 @@ test('it renders the queue dashboard with pending running and failed jobs', func
 
     $this->get('/queue')
         ->assertOk()
-        ->assertSee('Queue de jobs')
+        ->assertSee('Synchronisations')
+        ->assertSee('Taches en cours et en attente')
+        ->assertSee('Taches echouees')
         ->assertSee('PushCalendarEventToRemoteJob')
         ->assertSee('SyncCalendarAccountJob');
 });

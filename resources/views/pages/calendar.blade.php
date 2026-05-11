@@ -469,7 +469,19 @@ new #[Title('Calendrier')] class extends Component
 
 <div class="space-y-6">
 
-    <x-header title="{{ $this->weekStart()->translatedFormat('d M Y') }} -> {{ $this->weekEnd()->translatedFormat('d M Y') }}" separator>
+    @php
+        $title = "Semaine du ";
+
+        if( $this->weekStart()->format('mY') == $this->weekEnd()->format('mY') ){
+            $title .= $this->weekStart()->translatedFormat('jS')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+        }elseif($this->weekStart()->format('Y') == $this->weekEnd()->format('Y')){
+            $title .= $this->weekStart()->translatedFormat('jS F')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+        }else{
+            $title .= $this->weekStart()->translatedFormat('jS F Y')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+        }
+
+    @endphp
+    <x-header :title="$title" separator>
     </x-header>
 
     <div class="grid gap-6 md:grid-cols-3">

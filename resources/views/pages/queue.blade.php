@@ -57,7 +57,7 @@ new #[Title('Queue')] class extends Component
 ?>
 
 <div>
-    <x-header title="Synchronisations" subtitle="Suivez le traitement des tâches de synchronisation avec vos agendas" separator />
+    <x-header title="Synchronisations" subtitle="Suivez le traitement des taches de synchronisation avec vos agendas" separator />
 
     <div class="mb-6 grid gap-6 md:grid-cols-3">
         <x-stat
@@ -70,7 +70,7 @@ new #[Title('Queue')] class extends Component
             title="En cours"
             value="{{ $this->summary['running_count'] }}"
             icon="tabler.progress-bolt"
-            color="text-warning" />
+            color="text-success" />
 
         <x-stat
             title="Echecs"
@@ -79,22 +79,23 @@ new #[Title('Queue')] class extends Component
             color="text-error" />
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-3 items-start">
-        <x-card title="Tâches en cours">
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+        <x-card title="File d'attente">
             <div class="space-y-3">
                 @forelse ($this->runningJobs as $job)
                     <div class="rounded-box bg-base-200 p-4" wire:key="running-job-{{ $job['uuid'] }}">
-                        <p class="text-sm font-semibold">{{ $job['name'] }}</p>
-                        <p class="mt-1 text-xs text-base-content/60">Démarre à {{ $job['started_at'] }}</p>
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold">{{ $job['name'] }}</p>
+                                <p class="mt-1 text-xs text-base-content/60">Démarré à {{ $job['started_at'] }}</p>
+                            </div>
+
+                            <x-badge value="En cours" class="badge-success" />
+                        </div>
                     </div>
                 @empty
-                    <x-alert title="Aucune tâche active" icon="tabler.ban" class="" />
                 @endforelse
-            </div>
-        </x-card>
 
-        <x-card title="Tâches en attente">
-            <div class="space-y-3">
                 @forelse ($this->pendingJobs as $job)
                     <div class="rounded-box bg-base-200 p-4" wire:key="pending-job-{{ $job['id'] }}">
                         <div class="flex items-start justify-between gap-3">
@@ -104,22 +105,25 @@ new #[Title('Queue')] class extends Component
                             </div>
 
                             @if ($job['reserved'])
-                                <x-badge value="reserve" class="badge-info" />
+                                <x-badge value="Réservé" class="badge-info" />
                             @endif
                         </div>
                     </div>
                 @empty
-                    <x-alert title="Aucune tâche en attente" icon="tabler.ban" class="" />
                 @endforelse
+
+                @if($this->pendingJobs->isEmpty() && $this->runningJobs->isEmpty())
+                <x-alert title="Aucune tache en attente" icon="tabler.ban" class="" />
+                @endif
             </div>
         </x-card>
 
         <x-card title="Tâches échouées">
             <div class="space-y-3">
                 @forelse ($this->failedJobs as $job)
-                    <div class="rounded-box bg-base-200 p-4 overflow-hidden" wire:key="failed-job-{{ $job['uuid'] }}">
+                    <div class="rounded-box overflow-hidden bg-base-200 p-4" wire:key="failed-job-{{ $job['uuid'] }}">
                         <p class="text-sm font-semibold">{{ $job['name'] }}</p>
-                        <p class="mt-1 text-xs text-base-content/60">Echouée à {{ $job['failed_at'] }}</p>
+                        <p class="mt-1 text-xs text-base-content/60">Echouée a {{ $job['failed_at'] }}</p>
                         <p class="mt-2 text-xs text-error">{{ $job['exception'] }}</p>
 
                         <div class="mt-3 flex gap-2">
@@ -128,7 +132,7 @@ new #[Title('Queue')] class extends Component
                         </div>
                     </div>
                 @empty
-                    <x-alert title="Aucune tâche échouée" icon="tabler.ban" class="" />
+                    <x-alert title="Aucune tache echouee" icon="tabler.ban" class="" />
                 @endforelse
             </div>
         </x-card>

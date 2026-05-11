@@ -9,11 +9,13 @@ use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
+use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Throwable;
 
 #[DeleteWhenMissingModels]
 #[Tries(1)]
+#[Timeout(60)]
 class PushCalendarEventToRemoteJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;

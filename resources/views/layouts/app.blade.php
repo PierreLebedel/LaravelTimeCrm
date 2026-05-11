@@ -23,20 +23,20 @@
 
     <x-main>
         <x-slot:sidebar drawer="main-drawer" collapsible class="bg-base-100 lg:bg-inherit" collapse-text="Masquer">
-            <x-app-brand class="px-5 pt-5 pb-2" />
+            <x-app-brand class="px-5 pt-6 pb-2" />
 
             <x-menu activate-by-route>
                 <x-menu-item title="Calendrier" icon="tabler.calendar-week" link="{{ route('calendar') }}" exact />
                 <x-menu-item title="Clients" icon="tabler.building-skyscraper" link="{{ route('clients') }}" />
-                <x-menu-item title="Projets" icon="tabler.briefcase" link="{{ route('projects') }}" />
+                <x-menu-item title="Projets" icon="tabler.briefcase-2" link="{{ route('projects') }}" />
                 <x-menu-item title="Agendas DAV" icon="tabler.link" link="{{ route('calendars') }}" />
                 <livewire:review-menu-item />
                 <x-menu-item title="Analyse et facturation" icon="tabler.chart-area-line" link="{{ route('reports') }}" />
-                <x-menu-item title="Synchronisation" icon="tabler.list-details" link="{{ route('queue') }}" />
+                <x-menu-item title="Synchronisation" icon="tabler.list-check" link="{{ route('queue') }}" />
             </x-menu>
 
             <div class="ps-5.5">
-                <x-theme-toggle darkTheme="dark" lightTheme="" />
+                <x-theme-toggle darkTheme="night" lightTheme="" />
             </div>
         </x-slot:sidebar>
 

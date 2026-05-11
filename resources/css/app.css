@@ -19,13 +19,14 @@
 
 /** daisyUI */
 @plugin "../../node_modules/daisyui/index.js" {
-    themes: light --default, dark --prefersdark;
+    themes: light --default, night --prefersdark;
 }
 
 /* Theme toggle */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+    --color-primary:var(--color-indigo-600);
     --fc-border-color:  color-mix(in oklch, var(--color-base-content) 5%, #0000);
     --fc-event-text-color: white;
     --fc-page-bg-color:var(--color-base-100);
@@ -49,8 +50,8 @@
 
 body {
     background-image:
-        radial-gradient(circle at top, color-mix(in srgb, var(--color-primary) 18%, transparent) 0%, transparent 32%),
-        linear-gradient(180deg, color-mix(in srgb, var(--color-base-200) 85%, black) 0%, var(--color-base-200) 100%);
+        radial-gradient(circle at top, color-mix(in srgb, var(--color-primary) 1%, transparent) 0%, transparent 44%),
+        linear-gradient(180deg, color-mix(in srgb, var(--color-base-300) 85%, var(--color-primary)) 0%, var(--color-base-200) 100%);
 }
 
 @layer utilities {

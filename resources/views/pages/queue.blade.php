@@ -128,11 +128,11 @@ new #[Title('Queue')] class extends Component
 
                         <div class="mt-3 flex gap-2">
                             <x-button label="Relancer" class="btn-sm btn-primary" wire:click="retryFailed('{{ $job['uuid'] }}')" />
-                            <x-button label="Oublier" class="btn-sm" wire:click="forgetFailed('{{ $job['uuid'] }}')" wire:confirm="Supprimer ce job echoue ?" />
+                            <x-button label="Oublier" class="btn-sm" wire:click="forgetFailed('{{ $job['uuid'] }}')" wire:confirm="Supprimer ce job échoué ?" />
                         </div>
                     </div>
                 @empty
-                    <x-alert title="Aucune tache echouee" icon="tabler.ban" class="" />
+                    <x-alert title="Aucune tache échouée" icon="tabler.ban" class="" />
                 @endforelse
             </div>
         </x-card>

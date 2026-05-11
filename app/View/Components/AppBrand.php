@@ -26,7 +26,7 @@ class AppBrand extends Component
                         </div>
                     </div>
 
-                    <div class="display-when-collapsed hidden mx-5 mt-6 mb-1 h-[32px]">
+                    <div class="display-when-collapsed hidden mx-5 mt-7 mb-1 h-[32px]">
                         <x-svg name="tabler-calendar-dollar" class="w-6 text-primary" />
                     </div>
                 </a>

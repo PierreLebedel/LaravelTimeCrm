@@ -9,14 +9,14 @@ use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
+use Illuminate\Queue\Attributes\Tries;
 use Throwable;
 
 #[DeleteWhenMissingModels]
+#[Tries(1)]
 class PushCalendarEventToRemoteJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;
-
-    public int $tries = 1;
 
     public function __construct(
         public int $calendarEventId,
@@ -27,7 +27,7 @@ class PushCalendarEventToRemoteJob implements ShouldBeUniqueUntilProcessing, Sho
 
     public function uniqueId(): string
     {
-        return 'calendar-event:' . $this->calendarEventId;
+        return 'calendar-event:'.$this->calendarEventId;
     }
 
     public function handle(CalDavClient $client): void

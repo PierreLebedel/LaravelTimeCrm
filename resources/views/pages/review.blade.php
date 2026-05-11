@@ -272,9 +272,19 @@ new #[Title('Revue')] class extends Component
             ->count();
     }
 
-    public function saveAsIgnored()
+    public function saveAsIgnored(CalendarEventEditor $editor)
     {
-        $this->currentEvent->update([
+        $validator = Validator::make([
+            'event_id' => $this->event_id,
+        ], [
+            'event_id' => ['required', 'exists:calendar_events,id'],
+        ]);
+
+        $validated = $validator->validate();
+
+        $event = CalendarEvent::query()->findOrFail($validated['event_id']);
+
+        $editor->update($event, [
             "format_status" => CalendarEventFormatStatus::Ignored,
         ]);
 

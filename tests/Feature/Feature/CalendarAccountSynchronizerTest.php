@@ -738,3 +738,102 @@ XML, 207);
         ->sync_status->toBe(CalendarEventSyncStatus::Synced)
         ->format_status->toBe(CalendarEventFormatStatus::Formatted);
 });
+
+test('it does not reimport events already marked as ignored', function () {
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+    ]);
+
+    $ignoredEvent = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'client_id' => null,
+        'project_id' => null,
+        'external_id' => '/calendars/pierre/main/ignored-event.ics',
+        'external_etag' => '"etag-initial"',
+        'ical_uid' => 'ignored-event-1',
+        'title' => 'Titre ignore',
+        'feature_description' => 'Titre ignore',
+        'sync_status' => CalendarEventSyncStatus::Conflict,
+        'format_status' => CalendarEventFormatStatus::Ignored,
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/ignored-event.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-updated"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:ignored-event-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Acme : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $ignoredEvent->refresh();
+
+    expect($ignoredEvent)
+        ->client_id->toBeNull()
+        ->project_id->toBeNull()
+        ->title->toBe('Titre ignore')
+        ->feature_description->toBe('Titre ignore')
+        ->external_etag->toBe('"etag-initial"')
+        ->sync_status->toBe(CalendarEventSyncStatus::Conflict)
+        ->format_status->toBe(CalendarEventFormatStatus::Ignored);
+});

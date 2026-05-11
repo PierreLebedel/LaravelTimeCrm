@@ -25,6 +25,7 @@ Permettre de gerer :
 - Le titre distant cible d'un evenement est : `Client/Projet : Title`.
 - Si le projet porte exactement le meme nom que le client, le titre distant est simplifie en `Client : Title`.
 - Lorsqu'une connexion DAV revele des evenements non conformes, l'utilisateur doit les traiter un par un pour les associer correctement.
+- Un evenement marque `ignored` en local ne doit plus etre reimporte ni reclassifie lors des synchronisations suivantes.
 - Un client ou un projet ne peut pas etre supprime tant qu'au moins un evenement d'agenda lui est rattache.
 - L'application doit offrir une vue hebdomadaire du calendrier basee sur FullCalendar.
 - Un clic sur un evenement ouvre un drawer d'edition.
@@ -62,6 +63,7 @@ Permettre de gerer :
 - La page `Agendas` permet aussi d'activer ou desactiver chaque agenda distant.
 - La page `Agendas` permet aussi de definir un client par defaut par compte DAV.
 - Une page `Revue` pour retraiter les evenements non conformes.
+- Le compteur `Revue` dans la navigation principale doit se mettre a jour immediatement apres traitement d'un evenement.
 - Une page `Queue` pour suivre les jobs en attente, en cours et echoues.
 - Une page `Analyse` pour les totaux par periode, filtrables par client, projet et agenda.
 - L'export CSV n'est pas retenu dans le perimetre actuel.

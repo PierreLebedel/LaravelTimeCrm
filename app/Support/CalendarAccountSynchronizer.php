@@ -97,6 +97,10 @@ class CalendarAccountSynchronizer
             'external_id' => $remoteEvent->externalId,
         ]);
 
+        if ($event->exists && $event->format_status === CalendarEventFormatStatus::Ignored) {
+            return $event;
+        }
+
         $assignment = $this->resolveAssignment(
             title: $remoteEvent->title,
             calendarEvent: $event,

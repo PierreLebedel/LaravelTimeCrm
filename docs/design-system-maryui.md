@@ -33,6 +33,13 @@ Conventions :
 - `separator` par defaut ;
 - actions principales dans `x-slot:actions`.
 
+### Navigation
+
+Conventions :
+
+- l'entree `Revue` peut afficher un badge numerique ;
+- ce badge doit etre reactif et se mettre a jour sans rechargement complet apres traitement d'un evenement.
+
 ### Cards
 
 Utiliser `x-card` pour :
@@ -117,6 +124,7 @@ Utiliser `x-badge` pour les statuts ou etiquettes courtes.
 Cas actuels :
 
 - `needs_review` : badge warning
+- `ignored` : absence de badge d'alerte, l'evenement est hors flux de revue
 - `formatted` / `synced` : badge principal ou discret selon le contexte
 - `non facturable` : badge ghost
 - activation agenda : badge success ou ghost
@@ -167,6 +175,7 @@ Regles :
 - formulaire evenement mutualise dans un composant Blade partage
 - select dependant `client <-> projet`
 - badge pour les statuts courts
+- badge reactif pour la file `Revue`
 - indicateur couleur pour les clients
 - FullCalendar = grille JS tierce dans `wire:ignore`, mais drawer et formulaire restent ceux du systeme MaryUI
 

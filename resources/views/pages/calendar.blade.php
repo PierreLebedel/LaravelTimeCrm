@@ -539,7 +539,6 @@ new #[Title('Calendrier')] class extends Component
                     :project-disabled="$this->projectSelectionIsDisabled()"
                     :project-placeholder="$this->projectPlaceholder()"
                     :title-preview="$this->previewTitle()"
-                    title-preview-label="Titre distant"
                 />
             </div>
         @endif

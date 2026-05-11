@@ -11,8 +11,10 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -413,18 +415,35 @@ XML,
 
         $currentCalendarData = $this->fetchEventCalendarData($event);
 
+        $updatedCalendarData = $currentCalendarData !== null
+            ? $this->updateCalendarData($currentCalendarData, $event)
+            : $this->buildCalendarData($event);
+
         $response = $this->request($event->calendar->account)
             ->withHeaders(array_filter([
                 'Content-Type' => 'text/calendar; charset=utf-8',
                 'If-Match' => $event->external_etag,
             ]))
             ->send('PUT', $this->absoluteUrl($event->calendar->account->base_url, $event->external_id), [
-                'body' => $currentCalendarData !== null
-                    ? $this->updateCalendarData($currentCalendarData, $event)
-                    : $this->buildCalendarData($event),
+                'body' => $updatedCalendarData,
             ]);
 
-        $response->throw();
+        try {
+            $response->throw();
+        } catch (RequestException $exception) {
+            Log::error('CalDAV remote update failed.', [
+                'status' => $response->status(),
+                'method' => 'PUT',
+                'url' => $this->absoluteUrl($event->calendar->account->base_url, $event->external_id),
+                'external_id' => $event->external_id,
+                'ical_uid' => $event->ical_uid,
+                'title' => $event->title,
+                'request_body' => $updatedCalendarData,
+                'response_body' => $response->body(),
+            ]);
+
+            throw $exception;
+        }
 
         return $this->nullableString($response->header('ETag') ?? '');
     }
@@ -552,11 +571,29 @@ XML,
     protected function upsertProperty(array $lines, string $propertyName, ?string $value): array
     {
         $matchingIndexes = [];
+        $normalizedPropertyName = strtoupper($propertyName);
+        $nestedComponentDepth = 0;
 
         foreach ($lines as $index => $line) {
-            $name = Str::before(Str::before($line, ':'), ';');
+            $trimmedLine = ltrim($line);
 
-            if ($name === $propertyName) {
+            if (str_starts_with($trimmedLine, 'BEGIN:')) {
+                $nestedComponentDepth++;
+
+                continue;
+            }
+
+            if (str_starts_with($trimmedLine, 'END:')) {
+                $nestedComponentDepth = max(0, $nestedComponentDepth - 1);
+
+                continue;
+            }
+
+            if ($nestedComponentDepth > 0 || ! str_contains($trimmedLine, ':')) {
+                continue;
+            }
+
+            if ($this->propertyName($trimmedLine) === $normalizedPropertyName) {
                 $matchingIndexes[] = $index;
             }
         }
@@ -570,17 +607,39 @@ XML,
         }
 
         $insertIndex = count($lines);
+        $nestedComponentDepth = 0;
 
         foreach ($lines as $index => $line) {
-            if (str_starts_with($line, 'END:')) {
+            $trimmedLine = ltrim($line);
+
+            if ($nestedComponentDepth === 0 && str_starts_with($trimmedLine, 'BEGIN:')) {
                 $insertIndex = $index;
                 break;
+            }
+
+            if (str_starts_with($trimmedLine, 'BEGIN:')) {
+                $nestedComponentDepth++;
+
+                continue;
+            }
+
+            if (str_starts_with($trimmedLine, 'END:')) {
+                $nestedComponentDepth = max(0, $nestedComponentDepth - 1);
             }
         }
 
         array_splice($lines, $insertIndex, 0, [$propertyName.':'.$value]);
 
         return array_values($lines);
+    }
+
+    protected function propertyName(string $line): ?string
+    {
+        if (! str_contains($line, ':')) {
+            return null;
+        }
+
+        return strtoupper(trim(Str::before(Str::before($line, ':'), ';')));
     }
 
     protected function escapeIcalText(string $value): string

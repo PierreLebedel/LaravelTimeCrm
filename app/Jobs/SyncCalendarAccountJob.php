@@ -8,8 +8,10 @@ use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
+use Illuminate\Queue\Attributes\Tries;
 
 #[DeleteWhenMissingModels]
+#[Tries(1)]
 class SyncCalendarAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;
@@ -23,7 +25,7 @@ class SyncCalendarAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 
     public function uniqueId(): string
     {
-        return 'calendar-account:' . $this->calendarAccountId;
+        return 'calendar-account:'.$this->calendarAccountId;
     }
 
     public function handle(CalendarAccountSynchronizer $synchronizer): void

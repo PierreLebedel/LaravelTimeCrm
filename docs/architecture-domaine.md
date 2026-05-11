@@ -115,6 +115,7 @@ Statuts en place :
 
 - `sync_status` : `queued`, `synced`, `conflict`, `orphaned`
 - `format_status` : `formatted`, `needs_review`, `ignored`
+- `ignored` signifie qu'un evenement est volontairement sorti du flux de revue et qu'une synchro ulterieure ne doit plus le retraiter automatiquement.
 
 ## Flux metier implementes
 
@@ -126,7 +127,7 @@ Statuts en place :
 4. Chaque calendrier distant est upserte localement.
 5. Les evenements `VEVENT` sont recuperes via `REPORT`.
 6. La requete CalDAV applique une fenetre temporelle de `3 mois passes` et `6 mois futurs`.
-7. Chaque evenement est upserte localement avec son `etag` et son `UID`.
+7. Chaque evenement est upserte localement avec son `etag` et son `UID`, sauf s'il existe deja en `format_status = ignored`.
 8. `last_synced_at` est mis a jour sur le compte et l'evenement.
 
 ### Edition d'un evenement
@@ -164,7 +165,7 @@ Statuts en place :
 
 1. Le titre distant est parse selon la convention `Client/Projet : Title` ou `Client : Title`.
 2. Si le client existe, l'evenement est relie au client.
-3. Si le titre ne porte pas de projet et qu'un projet homonyme au client existe localement, ce projet est rattache automatiquement.
+3. Si le titre ne porte pas de projet, seul un projet homonyme au client peut etre rattache automatiquement.
 4. Si le titre est invalide ou si la reference locale est introuvable, l'evenement passe en revue.
 5. Dans les formulaires d'edition, tant qu'aucun client n'est choisi, tous les projets restent visibles.
 6. Si un projet est choisi en premier, le client correspondant est selectionne automatiquement.
@@ -194,6 +195,12 @@ Statuts en place :
 - la source distante gagne ;
 - si un evenement deja connu devient incoherent apres synchro, ses associations locales sont nettoyees ;
 - l'evenement repasse en `needs_review` avec `sync_status = conflict`.
+
+### Revue
+
+- la page `Revue` traite les evenements en `needs_review` ;
+- un evenement marque `ignored` sort durablement de ce flux ;
+- le badge `Revue` dans la navigation se rerend immediatement apres validation d'un evenement.
 
 ### Queue applicative
 
@@ -232,10 +239,11 @@ Statuts en place :
 - le couple `client / projet` fonctionne dans les deux sens dans les formulaires d'evenement ;
 - FullCalendar constitue maintenant la vue calendrier principale.
 - champs creation / edition / revue mutualises via un composant Blade partage.
+- le menu principal embarque un item `Revue` reactif avec badge Livewire.
 
 ## Limites actuelles
 
 - la synchronisation importe les `VEVENT` simples, sans gestion avancee des recurrents ;
 - le `PUT` distant reecrit actuellement les champs principaux de l'evenement, pas un payload CalDAV exhaustif ;
-- le `PUT` distant preserve deja les proprietes VEVENT inconnues les plus courantes, mais n'est pas encore un merge CalDAV complet ;
+- le `PUT` distant preserve deja les proprietes VEVENT inconnues les plus courantes, y compris les sous-composants imbriques comme `VALARM`, mais n'est pas encore un merge CalDAV complet ;
 - la fenetre de synchro est fixe pour l'instant et n'est pas encore parametrable dans l'UI.

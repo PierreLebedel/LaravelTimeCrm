@@ -331,7 +331,6 @@ new #[Title('Calendrier')] class extends Component
                     'end' => $event->ends_at->toIso8601String(),
                     'backgroundColor' => $color,
                     'borderColor' => $color,
-                    'textColor' => '#111827',
                     'extendedProps' => [
                         'client' => $event->client?->name,
                         'project' => $event->project?->name,
@@ -467,76 +466,78 @@ new #[Title('Calendrier')] class extends Component
 };
 ?>
 
-<div class="space-y-6">
+<div>
+    <div class="space-y-6">
 
-    @php
-        $title = "Semaine du ";
+        @php
+            $title = "Semaine du ";
 
-        if( $this->weekStart()->format('mY') == $this->weekEnd()->format('mY') ){
-            $title .= $this->weekStart()->translatedFormat('jS')." au ".$this->weekEnd()->translatedFormat('jS F Y');
-        }elseif($this->weekStart()->format('Y') == $this->weekEnd()->format('Y')){
-            $title .= $this->weekStart()->translatedFormat('jS F')." au ".$this->weekEnd()->translatedFormat('jS F Y');
-        }else{
-            $title .= $this->weekStart()->translatedFormat('jS F Y')." au ".$this->weekEnd()->translatedFormat('jS F Y');
-        }
+            if( $this->weekStart()->format('mY') == $this->weekEnd()->format('mY') ){
+                $title .= $this->weekStart()->translatedFormat('jS')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+            }elseif($this->weekStart()->format('Y') == $this->weekEnd()->format('Y')){
+                $title .= $this->weekStart()->translatedFormat('jS F')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+            }else{
+                $title .= $this->weekStart()->translatedFormat('jS F Y')." au ".$this->weekEnd()->translatedFormat('jS F Y');
+            }
 
-    @endphp
-    <x-header :title="$title" separator>
-        <x-slot:actions>
-            <div class="btn-group">
-                <x-button
-                    icon="tabler.chevron-left"
-                    class=""
-                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'prev' } }))"
-                />
-                <x-button
-                    label="Ajourd'hui"
-                    class=""
-                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'today' } }))"
-                />
-                <x-button
-                    icon="tabler.chevron-right"
-                    class=""
-                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'next' } }))"
-                />
-            </div>
-        </x-slot:actions>
-    </x-header>
+        @endphp
+        <x-header :title="$title" separator>
+            <x-slot:actions>
+                <div class="btn-group">
+                    <x-button
+                        icon="tabler.chevron-left"
+                        class=""
+                        x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'prev' } }))"
+                    />
+                    <x-button
+                        label="Ajourd'hui"
+                        class=""
+                        x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'today' } }))"
+                    />
+                    <x-button
+                        icon="tabler.chevron-right"
+                        class=""
+                        x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'next' } }))"
+                    />
+                </div>
+            </x-slot:actions>
+        </x-header>
 
-    <div class="grid gap-6 md:grid-cols-3">
+        <div class="grid gap-6 md:grid-cols-3">
 
-        <x-stat
-            title="Evénements"
-            value="{{ $this->weeklyTotals['events'] }}"
-            icon="tabler.calendar"
-            color="text-primary" />
+            <x-stat
+                title="Evénements"
+                value="{{ $this->weeklyTotals['events'] }}"
+                icon="tabler.calendar"
+                color="text-primary" />
 
-        <x-stat
-            title="Temps"
-            value="{{ DurationFormatter::formatMinutes($this->weeklyTotals['minutes']) }}"
-            icon="tabler.clock"
-            color="text-primary" />
+            <x-stat
+                title="Temps"
+                value="{{ DurationFormatter::formatMinutes($this->weeklyTotals['minutes']) }}"
+                icon="tabler.clock"
+                color="text-primary" />
 
-        <x-stat
-            title="Revue"
-            value="{{ $this->weeklyTotals['reviews'] }}"
-            icon="tabler.folder-exclamation"
-            color="text-primary" />
-    </div>
-
-    <x-card class="flex h-[calc(100dvh_-_222px)] flex-col overflow-hidden p-0!" body-class="h-full min-h-0">
-
-        <script type="application/json" data-fullcalendar-events>@json($this->fullCalendarEvents)</script>
-
-        <div wire:ignore class="h-full min-h-0">
-            <div
-                class="h-full"
-                data-fullcalendar
-                data-initial-date="{{ $this->weekStart()->toDateString() }}"
-                data-timezone="{{ config('app.timezone') }}"
-            ></div>
+            <x-stat
+                title="Revue"
+                value="{{ $this->weeklyTotals['reviews'] }}"
+                icon="tabler.folder-exclamation"
+                color="text-primary" />
         </div>
-    </x-card>
+
+        <x-card class="flex h-[calc(100dvh_-_222px)] flex-col overflow-hidden p-0! m-0" body-class="h-full min-h-0">
+
+            <script type="application/json" data-fullcalendar-events>@json($this->fullCalendarEvents)</script>
+
+            <div wire:ignore class="h-full min-h-0">
+                <div
+                    class="h-full"
+                    data-fullcalendar
+                    data-initial-date="{{ $this->weekStart()->toDateString() }}"
+                    data-timezone="{{ config('app.timezone') }}"
+                ></div>
+            </div>
+        </x-card>
+    </div>
 
     <x-drawer wire:model="drawer" title="{{ $this->drawerTitle() }}" right separator with-close-button class="w-full lg:w-[32rem]">
         @if ($this->editingEventId === null || $this->currentEvent)
@@ -589,6 +590,7 @@ new #[Title('Calendrier')] class extends Component
         </x-slot:actions>
     </x-drawer>
 </div>
+
 
 @assets
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>

@@ -25,6 +25,14 @@
 /* Theme toggle */
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+    --fc-border-color:  oklch(from var(--color-base-content) l c h / 0.25);
+    --fc-event-text-color: white;
+    --fc-page-bg-color:var(--color-base-100);
+    --fc-today-bg-color:oklch(from var(--color-primary) l c h / 0.15);
+    --fc-now-indicator-color: var(--color-error);
+}
+
 /**
 * Paginator - Traditional style
 * Because Laravel defaults does not match well the design of daisyUI.
@@ -44,10 +52,24 @@ body {
         linear-gradient(180deg, color-mix(in srgb, var(--color-base-200) 85%, black) 0%, var(--color-base-200) 100%);
 }
 
-/* Hauteur des lignes de slots */
+.fc table{
+    thead{
+        tr{
+            th.fc-col-header-cell{
+                @apply text-xs;
+            }
+        }
+    }
+}
+
+.fc-theme-standard .fc-scrollgrid{
+    border:none !important;
+    background:var(--fc-page-bg-color);
+}
 .fc-header-toolbar{
     display: none !important;
 }
+/* Hauteur des lignes de slots */
 .fc-timegrid-slot,
 .fc-timegrid-slot-label,
 .fc-timegrid-slot-lane {
@@ -56,7 +78,14 @@ body {
   font-size:0.7em;
 }
 .fc-event{
-    overflow: hidden;
+    @apply leading-tight overflow-hidden p-1;
+
+    .fc-event-main{
+        @apply text-xs;
+        .fc-event-title{
+            @apply pb-1 text-sm;
+        }
+    }
 }
 .fc .fc-button .fc-icon{
     font-size:1em;

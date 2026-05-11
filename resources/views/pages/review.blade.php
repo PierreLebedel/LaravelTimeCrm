@@ -274,17 +274,15 @@ new #[Title('Revue')] class extends Component
 
     public function saveAsIgnored(CalendarEventEditor $editor)
     {
-        $validator = Validator::make([
+        $validated = Validator::make([
             'event_id' => $this->event_id,
         ], [
             'event_id' => ['required', 'exists:calendar_events,id'],
-        ]);
-
-        $validated = $validator->validate();
+        ])->validate();
 
         $event = CalendarEvent::query()->findOrFail($validated['event_id']);
 
-        $editor->update($event, [
+        $event->update([
             "format_status" => CalendarEventFormatStatus::Ignored,
         ]);
 

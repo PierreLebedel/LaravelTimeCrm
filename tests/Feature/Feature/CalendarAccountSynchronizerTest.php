@@ -494,6 +494,97 @@ XML, 207);
         ->format_status->toBe(CalendarEventFormatStatus::NeedsReview);
 });
 
+test('it prioritizes an explicit client-only title over the default dav client', function () {
+    $defaultClient = Client::factory()->create([
+        'name' => 'Interne',
+    ]);
+
+    Project::factory()->create([
+        'client_id' => $defaultClient->id,
+        'name' => 'Interne',
+    ]);
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+
+    $account = CalendarAccount::factory()
+        ->withDefaultClient($defaultClient)
+        ->create([
+            'base_url' => 'https://dav.example.test/principals/pierre/',
+            'username' => 'pierre@example.test',
+            'password' => 'secret-token',
+        ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/client-only-title.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-client-only-title"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:client-only-title-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Acme : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    $event = CalendarEvent::query()->sole();
+
+    expect($event)
+        ->client_id->toBe($client->id)
+        ->project_id->toBe($project->id)
+        ->title->toBe('Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Synced)
+        ->format_status->toBe(CalendarEventFormatStatus::Formatted);
+});
+
 test('it assigns a homonymous project when a client-only title is imported', function () {
     $client = Client::factory()->create([
         'name' => 'Acme',
@@ -727,6 +818,113 @@ XML, 207);
     ]);
 
     $synchronizer->sync($account->fresh());
+
+    $event->refresh();
+
+    expect($event)
+        ->client_id->toBe($client->id)
+        ->project_id->toBe($project->id)
+        ->title->toBe('Support production')
+        ->feature_description->toBe('Support production')
+        ->sync_status->toBe(CalendarEventSyncStatus::Synced)
+        ->format_status->toBe(CalendarEventFormatStatus::Formatted);
+});
+
+test('it keeps a reviewed client-only title formatted on later resync even with a default dav client', function () {
+    $defaultClient = Client::factory()->create([
+        'name' => 'Interne',
+    ]);
+
+    Project::factory()->create([
+        'client_id' => $defaultClient->id,
+        'name' => 'Interne',
+    ]);
+
+    $client = Client::factory()->create([
+        'name' => 'Acme',
+    ]);
+
+    $project = Project::factory()->create([
+        'client_id' => $client->id,
+        'name' => 'Acme',
+    ]);
+
+    $account = CalendarAccount::factory()
+        ->withDefaultClient($defaultClient)
+        ->create([
+            'base_url' => 'https://dav.example.test/principals/pierre/',
+            'username' => 'pierre@example.test',
+            'password' => 'secret-token',
+        ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/reviewed-client-only.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-reviewed-client-only"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:reviewed-client-only-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260423T130000Z
+DTEND:20260423T140000Z
+SUMMARY:Acme : Support production
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'client_id' => $client->id,
+        'project_id' => $project->id,
+        'external_id' => '/calendars/pierre/main/reviewed-client-only.ics',
+        'title' => 'Support production',
+        'feature_description' => 'Support production',
+        'sync_status' => CalendarEventSyncStatus::Queued,
+        'format_status' => CalendarEventFormatStatus::Formatted,
+    ]);
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
 
     $event->refresh();
 

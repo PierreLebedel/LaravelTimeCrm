@@ -19,3 +19,11 @@ test('it calculates daily costs from event minutes', function () {
 
     expect($client->calculateCostInEuros(210))->toBe(350.0);
 });
+
+test('it trims the client name before saving', function () {
+    $client = Client::factory()->create([
+        'name' => '  Acme  ',
+    ]);
+
+    expect($client->fresh()->name)->toBe('Acme');
+});

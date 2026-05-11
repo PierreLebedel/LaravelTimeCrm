@@ -143,6 +143,45 @@ class CalendarAccountSynchronizer
     {
         $parsedTitle = CalendarEventTitleParser::parse($title);
 
+        if ($parsedTitle !== null) {
+            $client = Client::query()
+                ->where('name', $parsedTitle['client_name'])
+                ->first();
+
+            if ($client === null) {
+                return [
+                    'client_id' => null,
+                    'project_id' => null,
+                    'title' => $title,
+                    'feature_description' => $parsedTitle['feature_description'],
+                    'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
+                    'format_status' => CalendarEventFormatStatus::NeedsReview,
+                ];
+            }
+
+            $project = $this->resolveProjectForClient($client, $parsedTitle);
+
+            if ($project === null) {
+                return [
+                    'client_id' => null,
+                    'project_id' => null,
+                    'title' => $title,
+                    'feature_description' => $parsedTitle['feature_description'],
+                    'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
+                    'format_status' => CalendarEventFormatStatus::NeedsReview,
+                ];
+            }
+
+            return [
+                'client_id' => $client->id,
+                'project_id' => $project->id,
+                'title' => $parsedTitle['feature_description'],
+                'feature_description' => $parsedTitle['feature_description'],
+                'sync_status' => CalendarEventSyncStatus::Synced,
+                'format_status' => CalendarEventFormatStatus::Formatted,
+            ];
+        }
+
         if ($defaultClient !== null) {
             $project = $this->resolveProjectForClient($defaultClient, $parsedTitle);
 
@@ -167,52 +206,13 @@ class CalendarAccountSynchronizer
             ];
         }
 
-        if ($parsedTitle === null) {
-            return [
-                'client_id' => null,
-                'project_id' => null,
-                'title' => $title,
-                'feature_description' => $title,
-                'sync_status' => CalendarEventSyncStatus::Orphaned,
-                'format_status' => CalendarEventFormatStatus::NeedsReview,
-            ];
-        }
-
-        $client = Client::query()
-            ->where('name', $parsedTitle['client_name'])
-            ->first();
-
-        if ($client === null) {
-            return [
-                'client_id' => null,
-                'project_id' => null,
-                'title' => $title,
-                'feature_description' => $parsedTitle['feature_description'],
-                'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
-                'format_status' => CalendarEventFormatStatus::NeedsReview,
-            ];
-        }
-
-        $project = $this->resolveProjectForClient($client, $parsedTitle);
-
-        if ($project === null) {
-            return [
-                'client_id' => null,
-                'project_id' => null,
-                'title' => $title,
-                'feature_description' => $parsedTitle['feature_description'],
-                'sync_status' => $calendarEvent->exists ? CalendarEventSyncStatus::Conflict : CalendarEventSyncStatus::Orphaned,
-                'format_status' => CalendarEventFormatStatus::NeedsReview,
-            ];
-        }
-
         return [
-            'client_id' => $client->id,
-            'project_id' => $project->id,
-            'title' => $parsedTitle['feature_description'],
-            'feature_description' => $parsedTitle['feature_description'],
-            'sync_status' => CalendarEventSyncStatus::Synced,
-            'format_status' => CalendarEventFormatStatus::Formatted,
+            'client_id' => null,
+            'project_id' => null,
+            'title' => $title,
+            'feature_description' => $title,
+            'sync_status' => CalendarEventSyncStatus::Orphaned,
+            'format_status' => CalendarEventFormatStatus::NeedsReview,
         ];
     }
 

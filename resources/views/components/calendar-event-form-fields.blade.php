@@ -53,13 +53,21 @@
         <x-input type="datetime-local" label="Fin" wire:model.live.blur="ends_at" step="900" required />
     </div>
 
-    <x-alert icon="tabler.calendar-event" class="alert-info">
+    <x-alert icon="tabler.calendar-check" class="alert-">
         <div>
             <div class="font-bold">{{ $titlePreview }}</div>
             @if($this->currentEvent)
             <div class="text-xs">
+                @if ($this->currentEvent?->calendar)
+                Agenda : {{ $this->currentEvent?->calendar?->name ?? 'Agenda' }}<br />
+                @endif
+
                 @if ($this->currentEvent->client)
-                Client : {{ $this->currentEvent->client->name }}<br />
+                Client : {{ $this->currentEvent->client->name }}
+                @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
+                    (non-facturable)
+                @endif
+                <br />
                 @endif
 
                 {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}<br />

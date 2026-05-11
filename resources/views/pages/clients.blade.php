@@ -147,16 +147,20 @@ new #[Title('Clients')] class extends Component
 ?>
 
 <div>
-    <x-header title="Clients" subtitle="Gérez l'affichage et la facturation de vos clients" separator>
+    <x-header title="Vos clients" subtitle="">
         <x-slot:actions>
             <x-button label="Nouveau client" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
     </x-header>
 
-    <x-card shadow>
+    <x-card shadow class="p-0!">
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
             @scope('cell_color', $client)
                 <span class="inline-flex size-4 rounded-full border border-base-300" style="background-color: {{ $client['color'] }}"></span>
+            @endscope
+
+            @scope('cell_projects_count', $client)
+                <a href="{{ route('projects', ['client'=>$client['id']]) }}" wire:navigate>{{ $client['projects_count'] }}</a>
             @endscope
 
             @scope('actions', $client)

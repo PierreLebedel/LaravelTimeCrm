@@ -184,13 +184,13 @@ new #[Title('Agendas')] class extends Component
 ?>
 
 <div>
-    <x-header title="Agendas" subtitle="Connectez et synchronisez vos agendas DAV" separator>
+    <x-header title="Vos agendas DAV" subtitle="">
         <x-slot:actions>
             <x-button label="Nouvel agenda" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
     </x-header>
 
-    <x-card shadow>
+    <x-card shadow class="p-0!">
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
             @scope('cell_default_client_name', $account)
                 @if ($account['default_client_name'] === 'Aucun')
@@ -198,6 +198,10 @@ new #[Title('Agendas')] class extends Component
                 @else
                     <x-client-indicator :name="$account['default_client_name']" :color="$account['default_client_color']" />
                 @endif
+            @endscope
+
+            @scope('cell_base_url', $account)
+                <x-icon name="tabler.link" title="{{ $account['base_url'] }}" x-on:click="alert('{{ $account['base_url'] }}')" />
             @endscope
 
             @scope('actions', $account)

@@ -7,6 +7,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Mary\Traits\Toast;
 
@@ -19,6 +20,9 @@ new #[Title('Projets')] class extends Component
     public ?int $editingProjectId = null;
 
     public string $client_id = '';
+
+    #[Url(as:'client', except:'')]
+    public string $filter_client_id = '';
 
     public string $name = '';
 
@@ -115,6 +119,9 @@ new #[Title('Projets')] class extends Component
         return Project::query()
             ->with('client:id,name,color')
             ->withCount('calendarEvents')
+            ->when(!blank($this->filter_client_id), function($q){
+                $q->where('client_id', $this->filter_client_id);
+            })
             ->orderBy($this->sortBy['column'], $this->sortBy['direction'])
             ->get()
             ->map(fn (Project $project) => [
@@ -137,13 +144,14 @@ new #[Title('Projets')] class extends Component
 ?>
 
 <div>
-    <x-header title="Projets" subtitle="Gérez tous vos projets et ceux de vos clients" separator>
+    <x-header title="Vos projets" subtitle="">
         <x-slot:actions>
+            <x-select :options="$this->clientOptions->prepend(['key' => '', 'name' => 'Tous les clients'])" wire:model.live="filter_client_id" />
             <x-button label="Nouveau projet" icon="tabler.plus" class="btn-primary" wire:click="create" />
         </x-slot:actions>
     </x-header>
 
-    <x-card shadow>
+    <x-card shadow class="p-0!">
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
             @scope('cell_client_name', $project)
                 <x-client-indicator :name="$project['client_name']" :color="$project['client_color']" />

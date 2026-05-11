@@ -26,11 +26,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-    --fc-border-color:  oklch(from var(--color-base-content) l c h / 0.25);
+    --fc-border-color:  color-mix(in oklch, var(--color-base-content) 5%, #0000);
     --fc-event-text-color: white;
     --fc-page-bg-color:var(--color-base-100);
-    --fc-today-bg-color:oklch(from var(--color-primary) l c h / 0.15);
+    --fc-today-bg-color:oklch(from var(--color-primary) l c h / 0.1);
     --fc-now-indicator-color: var(--color-error);
+    --livewire-progress-bar-color: var(--color-primary);
 }
 
 /**
@@ -52,23 +53,44 @@ body {
         linear-gradient(180deg, color-mix(in srgb, var(--color-base-200) 85%, black) 0%, var(--color-base-200) 100%);
 }
 
-.fc table{
-    thead{
-        tr{
-            th.fc-col-header-cell{
-                @apply text-sm py-2.5;
+@layer utilities {
+    .card.p-5:not(.p-0):not(.pt-2){
+        @apply pt-4;
+    }
+    .card.p-5:not(.p-0){
+        @apply pb-4;
+    }
+    .table {
+        @layer daisyui.l1.l2.l3 {
+            & :where(th, td){
+                @apply px-5;
             }
         }
     }
+}
+
+.fc {
+    .fc-header-toolbar{
+        display: none !important;
+    }
+    table{
+        thead{
+            tr{
+                th.fc-col-header-cell{
+                    @apply text-sm py-2.5;
+                }
+            }
+        }
+        
+    }
+
 }
 
 .fc-theme-standard .fc-scrollgrid{
     border:none !important;
     background:var(--fc-page-bg-color);
 }
-.fc-header-toolbar{
-    display: none !important;
-}
+
 /* Hauteur des lignes de slots */
 .fc-timegrid-slot,
 .fc-timegrid-slot-label,

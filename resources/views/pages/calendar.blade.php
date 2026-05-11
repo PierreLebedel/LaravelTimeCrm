@@ -326,17 +326,17 @@ new #[Title('Calendrier')] class extends Component
 
                 return [
                     'id' => (string) $event->id,
-                    'title' => $event->title,
+                    'title' => $event->feature_description ?: $event->title,
                     'start' => $event->starts_at->toIso8601String(),
                     'end' => $event->ends_at->toIso8601String(),
                     'backgroundColor' => $color,
                     'borderColor' => $color,
-                    'extendedProps' => [
+                    'extendedProps' => array_filter([
                         'client' => $event->client?->name,
-                        'project' => $event->project?->name,
+                        'project' => ($event->project && $event->client && $event->project->name!=$event->client->name) ? $event->project->name : null,
                         'isBillable' => $event->is_billable,
                         'needsReview' => $event->format_status === CalendarEventFormatStatus::NeedsReview,
-                    ],
+                    ]),
                 ];
             })
             ->all();
@@ -481,22 +481,22 @@ new #[Title('Calendrier')] class extends Component
             }
 
         @endphp
-        <x-header :title="$title" separator>
+        <x-header :title="$title">
             <x-slot:actions>
                 <div class="btn-group">
                     <x-button
                         icon="tabler.chevron-left"
-                        class=""
+                        class="shadow-none"
                         x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'prev' } }))"
                     />
                     <x-button
                         label="Ajourd'hui"
-                        class=""
+                        class="shadow-none"
                         x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'today' } }))"
                     />
                     <x-button
                         icon="tabler.chevron-right"
-                        class=""
+                        class="shadow-none"
                         x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'next' } }))"
                     />
                 </div>
@@ -524,7 +524,7 @@ new #[Title('Calendrier')] class extends Component
                 color="text-primary" />
         </div>
 
-        <x-card class="flex h-[calc(100dvh_-_222px)] flex-col overflow-hidden p-0! m-0" body-class="h-full min-h-0">
+        <x-card shadow class="flex h-[calc(100svh_-_222px)] flex-col overflow-hidden p-0! m-0" body-class="h-full min-h-0">
 
             <script type="application/json" data-fullcalendar-events>@json($this->fullCalendarEvents)</script>
 
@@ -542,25 +542,34 @@ new #[Title('Calendrier')] class extends Component
     <x-drawer wire:model="drawer" title="{{ $this->drawerTitle() }}" right separator with-close-button class="w-full lg:w-[32rem]">
         @if ($this->editingEventId === null || $this->currentEvent)
             <div class="space-y-4">
-                <div class="rounded-box bg-base-200 p-4">
-                    <div
-                        class="-m-4 mb-0 rounded-box bg-base-200 p-4"
-                        style="border-left: 4px solid {{ $this->currentEvent?->client?->color ?? $this->currentCalendar?->color ?? 'transparent' }};"
-                    >
-                        <p class="text-xs uppercase tracking-[0.3em] text-base-content/40">{{ $this->currentCalendar?->name ?? $this->currentEvent?->calendar?->name ?? 'Agenda' }}</p>
-                        <p class="mt-2 text-sm font-semibold">{{ $this->currentEvent?->title ?? 'Creation d un nouvel evenement local' }}</p>
-                        @if ($this->currentEvent?->client?->color)
-                            <div class="mt-2 text-xs text-base-content/60">
-                                <x-client-indicator :name="$this->currentEvent->client->name" :color="$this->currentEvent->client->color" />
-                            </div>
-                        @endif
-                        @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
-                            <div class="mt-2">
-                                <x-badge value="non facturable" class="badge-ghost" />
-                            </div>
-                        @endif
+            
+
+                @if($this->currentEvent)
+                <x-alert icon="tabler.calendar-exclamation" class="alert-">
+                    <div>
+                        <div class="font-bold">{{ $this->currentEvent->title }}</div>
+                        <div class="text-xs">
+                            @if ($this->currentCalendar || $this->currentEvent?->calendar)
+                            Agenda : {{ $this->currentCalendar?->name ?? $this->currentEvent?->calendar?->name ?? 'Agenda' }}<br />
+                            @endif
+
+                            @if ($this->currentEvent->client)
+                            Client : {{ $this->currentEvent->client->name }}
+                            @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
+                                (non-facturable)
+                            @endif
+                            <br />
+                            @endif
+
+                            {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}<br />
+
+                            
+
+                            {{ $this->currentEvent->description }}
+                        </div>
                     </div>
-                </div>
+                </x-alert>
+                @endif
 
                 <x-calendar-event-form-fields
                     :show-calendar-select="$this->editingEventId === null"
@@ -711,11 +720,11 @@ new #[Title('Calendrier')] class extends Component
                     }
 
                     if (needsReview) {
-                        meta.push('A revoir');
+                        meta.push('A associer');
                     }
 
                     if (! isBillable) {
-                        meta.push('Non facturable');
+                        meta.push('non-facturable');
                     }
 
                     lines.push(`<div class="fc-event-subtitle text-[11px] opacity-80">${meta.join(' - ')}</div>`);

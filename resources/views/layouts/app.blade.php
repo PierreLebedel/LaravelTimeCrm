@@ -29,9 +29,9 @@
                 <x-menu-item title="Calendrier" icon="tabler.calendar-week" link="{{ route('calendar') }}" exact />
                 <x-menu-item title="Clients" icon="tabler.building-skyscraper" link="{{ route('clients') }}" />
                 <x-menu-item title="Projets" icon="tabler.briefcase" link="{{ route('projects') }}" />
-                <x-menu-item title="Agendas" icon="tabler.link" link="{{ route('calendars') }}" />
+                <x-menu-item title="Agendas DAV" icon="tabler.link" link="{{ route('calendars') }}" />
                 <livewire:review-menu-item />
-                <x-menu-item title="Analyse" icon="tabler.chart-bar" link="{{ route('reports') }}" />
+                <x-menu-item title="Analyse et facturation" icon="tabler.chart-area-line" link="{{ route('reports') }}" />
                 <x-menu-item title="Synchronisation" icon="tabler.list-details" link="{{ route('queue') }}" />
             </x-menu>
 
@@ -41,20 +41,6 @@
         </x-slot:sidebar>
 
         <x-slot:content>
-            @if (($queueSummary['running_count'] ?? 0) > 0 || ($queueSummary['pending_count'] ?? 0) > 0)
-                <div class="mb-4">
-                    <a href="{{ route('queue') }}" class="alert alert-info flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3">
-                            <x-svg name="tabler-loader-2" class="h-5 w-5" />
-                            <span class="text-sm">
-                                {{ $queueSummary['running_count'] }} job(s) en cours, {{ $queueSummary['pending_count'] }} en attente.
-                            </span>
-                        </div>
-                        <span class="text-xs uppercase tracking-[0.2em]">Voir la file</span>
-                    </a>
-                </div>
-            @endif
-
             {{ $slot }}
         </x-slot:content>
     </x-main>

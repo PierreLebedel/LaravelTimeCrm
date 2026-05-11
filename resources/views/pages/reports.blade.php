@@ -96,10 +96,10 @@ new #[Title('Analyse')] class extends Component
 ?>
 
 <div>
-    <x-header title="Analyse temps et coûts" subtitle="Synthèse sur période avec regroupement par client et par projet." separator />
+    <x-header title="Analyse et facturation" subtitle="" />
 
     <div class="mb-6 grid gap-4">
-        <x-card>
+        <x-card shadow class="pt-2">
             <div class="grid gap-4 md:grid-cols-3">
                 <x-input label="Du" type="date" wire:model.live="from" />
                 <x-input label="Au" type="date" wire:model.live="to" />
@@ -138,7 +138,7 @@ new #[Title('Analyse')] class extends Component
             color="text-primary" />
     </div>
 
-    <x-card shadow>
+    <x-card shadow class="p-0!">
         <x-table :headers="$headers" :rows="$rows" :sort-by="$sortBy">
             @scope('cell_label', $row)
                 <x-client-indicator :name="$row['label']" :color="$row['color']" />

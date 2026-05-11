@@ -294,7 +294,7 @@ new #[Title('Revue')] class extends Component
 ?>
 
 <div>
-    <x-header title="Revue des événements" subtitle="Associez les évenements de vos calendrier à vos clients et leurs projets" separator>
+    <x-header title="Revue des événements à associer" subtitle="">
         <x-slot:actions>
             <x-badge :value="$this->queueCount.' restant(s)'" @class([
                 "badge-warning" => $this->queueCount>0,
@@ -309,12 +309,19 @@ new #[Title('Revue')] class extends Component
                 <x-alert title="Aucun événement à traiter" icon="tabler.circle-check" class="alert-success alert-soft" />
             @else
                 <div class="space-y-4">
-                    <x-alert icon="tabler.calendar-exclamation" class="alert-warning">
+                    <x-alert icon="tabler.calendar-exclamation" class="alert-">
                         <div>
                             <div class="font-bold">{{ $this->currentEvent->title }}</div>
                             <div class="text-xs">
+                                @if ($this->currentEvent?->calendar)
+                                Agenda : {{ $this->currentEvent?->calendar?->name ?? 'Agenda' }}<br />
+                                @endif
                                 @if ($this->currentEvent->client)
-                                Client : {{ $this->currentEvent->client->name }}<br />
+                                    Client : {{ $this->currentEvent->client->name }}
+                                    @if (($this->currentEvent?->is_billable ?? $this->is_billable) === false)
+                                        (non-facturable)
+                                    @endif
+                                    <br />
                                 @endif
 
                                 {{ $this->currentEvent->starts_at->translatedFormat('d M Y H:i') }} -> {{ $this->currentEvent->ends_at->translatedFormat('H:i') }}<br />

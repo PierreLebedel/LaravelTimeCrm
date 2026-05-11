@@ -57,7 +57,7 @@ new #[Title('Queue')] class extends Component
 ?>
 
 <div>
-    <x-header title="Synchronisations" subtitle="Suivez le traitement des taches de synchronisation avec vos agendas" separator />
+    <x-header title="Synchronisation avec vos agendas" subtitle="" />
 
     <div class="mb-6 grid gap-6 md:grid-cols-3">
         <x-stat

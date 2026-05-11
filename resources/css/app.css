@@ -47,11 +47,14 @@ body {
 }
 
 /* Hauteur des lignes de slots */
+.fc-header-toolbar{
+    display: none !important;
+}
 .fc-timegrid-slot,
 .fc-timegrid-slot-label,
 .fc-timegrid-slot-lane {
-  height: 26px;
-  line-height: 26px;
+  height: 28px;
+  line-height: 28px;
   font-size:0.7em;
 }
 .fc-event{

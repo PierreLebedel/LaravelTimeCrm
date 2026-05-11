@@ -482,6 +482,25 @@ new #[Title('Calendrier')] class extends Component
 
     @endphp
     <x-header :title="$title" separator>
+        <x-slot:actions>
+            <div class="btn-group">
+                <x-button
+                    icon="tabler.chevron-left"
+                    class=""
+                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'prev' } }))"
+                />
+                <x-button
+                    label="Ajourd'hui"
+                    class=""
+                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'today' } }))"
+                />
+                <x-button
+                    icon="tabler.chevron-right"
+                    class=""
+                    x-on:click="window.dispatchEvent(new CustomEvent('calendar-nav', { detail: { action: 'next' } }))"
+                />
+            </div>
+        </x-slot:actions>
     </x-header>
 
     <div class="grid gap-6 md:grid-cols-3">
@@ -505,12 +524,13 @@ new #[Title('Calendrier')] class extends Component
             color="text-primary" />
     </div>
 
-    <x-card class="overflow-hidden p-0">
+    <x-card class="flex h-[calc(100dvh_-_222px)] flex-col overflow-hidden p-0!" body-class="h-full min-h-0">
 
         <script type="application/json" data-fullcalendar-events>@json($this->fullCalendarEvents)</script>
 
-        <div wire:ignore>
+        <div wire:ignore class="h-full min-h-0">
             <div
+                class="h-full"
                 data-fullcalendar
                 data-initial-date="{{ $this->weekStart()->toDateString() }}"
                 data-timezone="{{ config('app.timezone') }}"
@@ -632,7 +652,7 @@ new #[Title('Calendrier')] class extends Component
             editable: true,
             selectable: true,
             selectMirror: true,
-            height: '628px',
+            height: '100%',
             slotDuration: '00:30:00',
             slotMinTime: '00:00:00',
             slotMaxTime: '24:00:00',
@@ -645,9 +665,9 @@ new #[Title('Calendrier')] class extends Component
                 hour12: false,
             },
             headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'timeGridWeek,timeGridDay',
+                left: '',
+                center: '',
+                right: '',
             },
             events: fullCalendarEvents,
             eventClick: (info) => {
@@ -706,5 +726,29 @@ new #[Title('Calendrier')] class extends Component
         queueMicrotask(() => {
             renderEvents(readEventsFromDom());
         });
+    });
+
+    window.addEventListener('calendar-nav', (event) => {
+        if (! calendar) {
+            return;
+        }
+
+        const action = event.detail?.action;
+
+        if (action === 'prev') {
+            calendar.prev();
+
+            return;
+        }
+
+        if (action === 'next') {
+            calendar.next();
+
+            return;
+        }
+
+        if (action === 'today') {
+            calendar.today();
+        }
     });
 </script>

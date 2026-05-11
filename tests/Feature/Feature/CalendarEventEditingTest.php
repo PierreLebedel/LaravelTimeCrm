@@ -289,6 +289,20 @@ test('it displays weekly time using hours and minutes in the main calendar', fun
         ->assertDontSee('4,75 h');
 });
 
+test('it renders header navigation buttons wired to fullcalendar browser events', function () {
+    Livewire::test('pages::calendar')
+        ->assertSeeHtml("action: 'prev'")
+        ->assertSeeHtml("action: 'today'")
+        ->assertSeeHtml("action: 'next'");
+});
+
+test('it renders fullcalendar inside a fixed-height flex container', function () {
+    Livewire::test('pages::calendar')
+        ->assertSeeHtml('flex h-[628px] flex-col overflow-hidden')
+        ->assertSeeHtml('grow-1 h-full min-h-0')
+        ->assertSeeHtml('wire:ignore class="h-full min-h-0"');
+});
+
 test('it reschedules a calendar event from the main calendar and queues a remote push job', function () {
     Queue::fake();
 

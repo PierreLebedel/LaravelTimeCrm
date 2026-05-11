@@ -1035,3 +1035,104 @@ XML, 207);
         ->sync_status->toBe(CalendarEventSyncStatus::Conflict)
         ->format_status->toBe(CalendarEventFormatStatus::Ignored);
 });
+
+test('it deletes synced local events missing from the remote calendar within the sync window', function () {
+    CarbonImmutable::setTestNow('2026-04-21 10:00:00 UTC');
+
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+        'is_selected' => true,
+    ]);
+
+    $missingRemoteEvent = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'external_id' => '/calendars/pierre/main/deleted-remote.ics',
+        'starts_at' => '2026-04-22 09:00:00',
+        'ends_at' => '2026-04-22 10:00:00',
+        'last_synced_at' => '2026-04-20 09:00:00',
+        'sync_status' => CalendarEventSyncStatus::Synced,
+    ]);
+
+    $localDraftEvent = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'external_id' => '/calendars/pierre/main/local-draft.ics',
+        'starts_at' => '2026-04-23 09:00:00',
+        'ends_at' => '2026-04-23 10:00:00',
+        'last_synced_at' => null,
+        'sync_status' => CalendarEventSyncStatus::Queued,
+    ]);
+
+    $outsideWindowEvent = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'external_id' => '/calendars/pierre/main/outside-window.ics',
+        'starts_at' => '2025-12-15 09:00:00',
+        'ends_at' => '2025-12-15 10:00:00',
+        'last_synced_at' => '2026-04-20 09:00:00',
+        'sync_status' => CalendarEventSyncStatus::Synced,
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'PROPFIND') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:displayname>Main</d:displayname>
+                <d:resourcetype>
+                    <d:collection />
+                    <cal:calendar />
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        if ($request->method() === 'REPORT') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8" ?>
+<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+    <d:response>
+        <d:href>/calendars/pierre/main/still-there.ics</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getetag>"etag-still-there"</d:getetag>
+                <cal:calendar-data>BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:still-there-1
+DTSTAMP:20260421T070000Z
+DTSTART:20260424T080000Z
+DTEND:20260424T090000Z
+SUMMARY:Client inconnu : Revue
+END:VEVENT
+END:VCALENDAR</cal:calendar-data>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+</d:multistatus>
+XML, 207);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalendarAccountSynchronizer::class)->sync($account);
+
+    expect(CalendarEvent::query()->find($missingRemoteEvent->id))->toBeNull()
+        ->and(CalendarEvent::query()->find($localDraftEvent->id))->not()->toBeNull()
+        ->and(CalendarEvent::query()->find($outsideWindowEvent->id))->not()->toBeNull()
+        ->and(CalendarEvent::query()->where('external_id', '/calendars/pierre/main/still-there.ics')->exists())->toBeTrue();
+});

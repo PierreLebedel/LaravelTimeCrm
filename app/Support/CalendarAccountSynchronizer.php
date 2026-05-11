@@ -13,6 +13,8 @@ use App\Support\CalDav\CalDavCalendar;
 use App\Support\CalDav\CalDavClient;
 use App\Support\CalDav\CalDavEvent;
 use App\Support\CalDav\CalDavSyncResult;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class CalendarAccountSynchronizer
@@ -45,6 +47,8 @@ class CalendarAccountSynchronizer
                 foreach ($events as $event) {
                     $this->storeEvent($calendar, $account, $event);
                 }
+
+                $this->deleteMissingRemoteEvents($calendar, $events);
             }
 
             $account->forceFill([
@@ -127,6 +131,36 @@ class CalendarAccountSynchronizer
         $event->save();
 
         return $event;
+    }
+
+    /**
+     * @param  Collection<int, CalDavEvent>  $remoteEvents
+     */
+    protected function deleteMissingRemoteEvents(Calendar $calendar, Collection $remoteEvents): void
+    {
+        [$windowStart, $windowEnd] = $this->syncWindow();
+
+        $remoteExternalIds = $remoteEvents
+            ->pluck('externalId')
+            ->filter()
+            ->values()
+            ->all();
+
+        $query = CalendarEvent::query()
+            ->whereBelongsTo($calendar)
+            ->whereNotNull('external_id')
+            ->whereNotNull('last_synced_at')
+            ->where(function ($query) use ($windowStart, $windowEnd): void {
+                $query
+                    ->where('starts_at', '<=', $windowEnd)
+                    ->where('ends_at', '>=', $windowStart);
+            });
+
+        if ($remoteExternalIds !== []) {
+            $query->whereNotIn('external_id', $remoteExternalIds);
+        }
+
+        $query->delete();
     }
 
     /**
@@ -236,5 +270,19 @@ class CalendarAccountSynchronizer
             ->whereBelongsTo($client)
             ->where('name', $client->name)
             ->first();
+    }
+
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    protected function syncWindow(): array
+    {
+        $pastMonths = (int) config('crm.sync_window.past_months', 3);
+        $futureMonths = (int) config('crm.sync_window.future_months', 6);
+
+        return [
+            now()->subMonthsNoOverflow($pastMonths)->startOfDay()->toImmutable(),
+            now()->addMonthsNoOverflow($futureMonths)->endOfDay()->toImmutable(),
+        ];
     }
 }

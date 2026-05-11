@@ -460,17 +460,47 @@ XML,
             return;
         }
 
+        $url = $this->absoluteUrl($event->calendar->account->base_url, $event->external_id);
+
         $response = $this->request($event->calendar->account)
             ->withHeaders(array_filter([
                 'If-Match' => $event->external_etag,
             ]))
-            ->send('DELETE', $this->absoluteUrl($event->calendar->account->base_url, $event->external_id));
+            ->send('DELETE', $url);
 
-        if ($response->status() === 404) {
+        if ($response->status() === 404 || $this->isAlreadyDeletedPreconditionFailure($response->status(), $response->body())) {
             return;
         }
 
-        $response->throw();
+        try {
+            $response->throw();
+        } catch (RequestException $exception) {
+            Log::error('CalDAV remote delete failed.', [
+                'status' => $response->status(),
+                'method' => 'DELETE',
+                'url' => $url,
+                'external_id' => $event->external_id,
+                'external_etag' => $event->external_etag,
+                'ical_uid' => $event->ical_uid,
+                'title' => $event->title,
+                'response_body' => $response->body(),
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    protected function isAlreadyDeletedPreconditionFailure(int $status, string $responseBody): bool
+    {
+        if ($status !== 412) {
+            return false;
+        }
+
+        return Str::contains($responseBody, [
+            'Sabre\\DAV\\Exception\\PreconditionFailed',
+            'An If-Match header was specified and the resource did not exist',
+            '<s:header>If-Match</s:header>',
+        ]);
     }
 
     protected function buildCalendarData(CalendarEvent $event): string

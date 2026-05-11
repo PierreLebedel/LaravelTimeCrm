@@ -7,13 +7,15 @@ use App\Support\CalendarAccountSynchronizer;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Attributes\Backoff;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
 use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 
 #[DeleteWhenMissingModels]
-#[Tries(1)]
-#[Timeout(1800)]
+#[Tries(3)]
+#[Timeout(300)]
+#[Backoff(20, 40, 60)]
 class SyncCalendarAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Queueable;

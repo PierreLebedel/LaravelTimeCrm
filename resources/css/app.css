@@ -56,7 +56,7 @@ body {
     thead{
         tr{
             th.fc-col-header-cell{
-                @apply text-xs;
+                @apply text-sm py-2.5;
             }
         }
     }

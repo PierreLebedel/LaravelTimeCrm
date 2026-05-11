@@ -662,14 +662,20 @@ new #[Title('Calendrier')] class extends Component
             scrollTimeReset: false,
             snapDuration: '00:15:00',
             slotLabelFormat: {
-                hour: '2-digit',
+                hour: 'numeric',
                 minute: '2-digit',
                 hour12: false,
+                omitZeroMinute:false
             },
             headerToolbar: {
                 left: '',
                 center: '',
                 right: '',
+            },
+            dayHeaderFormat: { // will produce something like "Tuesday, September 18, 2018"
+                weekday: 'long',
+                day: 'numeric',
+                month: 'short'
             },
             events: fullCalendarEvents,
             eventClick: (info) => {

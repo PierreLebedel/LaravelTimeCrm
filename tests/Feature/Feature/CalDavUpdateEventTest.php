@@ -297,3 +297,94 @@ XML, 415);
             && str_contains($context['response_body'], 'Unsupported media type'))
     );
 });
+
+test('it logs the precise remote error body when a caldav delete fails', function () {
+    Log::spy();
+
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'ical_uid' => 'failed-delete-123',
+        'external_id' => '/calendars/pierre/main/failed-delete-123.ics',
+        'external_etag' => '"etag-delete-failed"',
+        'title' => 'Acme : Support',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'DELETE') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<d:error xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">
+  <s:message>ETag does not match the current resource version</s:message>
+</d:error>
+XML, 412);
+        }
+
+        return Http::response('', 500);
+    });
+
+    expect(fn () => app(CalDavClient::class)->deleteEvent($event))
+        ->toThrow(RequestException::class);
+
+    Log::shouldHaveReceived('error')->once()->with(
+        'CalDAV remote delete failed.',
+        Mockery::on(fn (array $context): bool => $context['status'] === 412
+            && $context['method'] === 'DELETE'
+            && $context['external_id'] === '/calendars/pierre/main/failed-delete-123.ics'
+            && $context['external_etag'] === '"etag-delete-failed"'
+            && $context['ical_uid'] === 'failed-delete-123'
+            && str_contains($context['response_body'], 'ETag does not match'))
+    );
+});
+
+test('it treats a sabredav if-match precondition failure for a missing resource as already deleted', function () {
+    Log::spy();
+
+    $account = CalendarAccount::factory()->create([
+        'base_url' => 'https://dav.example.test/principals/pierre/',
+        'username' => 'pierre@example.test',
+        'password' => 'secret-token',
+    ]);
+
+    $calendar = Calendar::factory()->create([
+        'calendar_account_id' => $account->id,
+        'external_id' => '/calendars/pierre/main/',
+    ]);
+
+    $event = CalendarEvent::factory()->create([
+        'calendar_id' => $calendar->id,
+        'ical_uid' => 'missing-delete-123',
+        'external_id' => '/calendars/pierre/main/missing-delete-123.ics',
+        'external_etag' => '"etag-missing-delete"',
+        'title' => 'Acme : Support',
+    ]);
+
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'DELETE') {
+            return Http::response(<<<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<d:error xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">
+  <s:exception>Sabre\DAV\Exception\PreconditionFailed</s:exception>
+  <s:message>An If-Match header was specified and the resource did not exist</s:message>
+  <s:header>If-Match</s:header>
+</d:error>
+XML, 412);
+        }
+
+        return Http::response('', 500);
+    });
+
+    app(CalDavClient::class)->deleteEvent($event);
+
+    Log::shouldNotHaveReceived('error');
+});

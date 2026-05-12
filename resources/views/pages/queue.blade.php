@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\SyncCalendarAccountJob;
 use App\Support\QueueDashboard;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
@@ -7,6 +8,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Mary\Traits\Toast;
+use App\Models\CalendarAccount;
 
 new #[Title('Queue')] class extends Component
 {
@@ -27,7 +29,7 @@ new #[Title('Queue')] class extends Component
 
         unset($this->failedJobs, $this->summary);
 
-        $this->success('Job supprime de la liste des echecs.');
+        $this->success('Job supprimé de la liste des échecs.');
     }
 
     #[Computed]
@@ -53,11 +55,32 @@ new #[Title('Queue')] class extends Component
     {
         return app(QueueDashboard::class)->failedJobs();
     }
+
+    public function syncAll()
+    {
+        $accounts = CalendarAccount::query()
+            ->where('is_active', true)
+            ->get();
+
+        foreach($accounts as $account){
+            SyncCalendarAccountJob::dispatch($account->id);
+        }
+
+        if($accounts->count()>0){
+            $this->success("Synchronisation planifiée pour les ".$accounts->count()." agendas actifs.");
+        }else{
+            $this->error("Aucun agenda actif à sunchroniser");
+        }
+    }
 };
 ?>
 
 <div>
-    <x-header title="Synchronisation avec vos agendas" subtitle="" />
+    <x-header title="Synchronisation de vos agendas" subtitle="">
+        <x-slot:actions>
+            <x-button label="Synchroniser tous les agendas" icon="tabler.refresh" class="btn-primary" wire:click="syncAll" />
+        </x-slot:actions>
+    </x-header>
 
     <div class="mb-6 grid gap-6 md:grid-cols-3">
         <x-stat

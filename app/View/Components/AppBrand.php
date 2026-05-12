@@ -20,7 +20,7 @@ class AppBrand extends Component
                                     TimeCRM
                                 </span>
                             </div>
-                            <span class="text-xs font-medium uppercase text-base-content/50">
+                            <span class="text-xs font-medium text-base-content/50">
                                 v{{ config('nativephp.version') }}
                             </span>
                         </div>

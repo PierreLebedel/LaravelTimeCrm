@@ -306,7 +306,7 @@ new #[Title('Revue')] class extends Component
     <div class="flex items-start justify-stretch gap-6">
         <x-card title="Evénement à traiter" class="grow">
             @if (! $this->currentEvent)
-                <x-alert title="Aucun événement à traiter" icon="tabler.circle-check" class="alert-success alert-soft" />
+                <x-alert title="Aucun événement à traiter" icon="tabler.circle-check" class="" />
             @else
                 <div class="space-y-4">
                     <x-alert icon="tabler.calendar-exclamation" class="alert-">
